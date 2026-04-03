@@ -48,7 +48,6 @@ export async function saveUser(input: {
       pseudo: input.pseudo,
       password_hash: input.password_hash,
       wallet_address: null,
-      encrypted_private_key: null,
     })
     .returning("id")
     .executeTakeFirstOrThrow();

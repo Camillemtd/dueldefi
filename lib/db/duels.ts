@@ -39,3 +39,20 @@ export async function findDuelWithPseudos(id: string) {
     opponent_pseudo: opponent?.pseudo ?? null,
   };
 }
+
+/** Définit l’adversaire si la place est encore libre (une seule ligne mise à jour). */
+export async function setDuelOpponent(duelId: string, opponentUserId: string) {
+  const result = await getDb()
+    .updateTable("duels")
+    .set({
+      opponent_id: opponentUserId,
+      updated_at: new Date(),
+    })
+    .where("id", "=", duelId)
+    .where("opponent_id", "is", null)
+    .executeTakeFirst();
+
+  const n = result.numUpdatedRows;
+  const count = typeof n === "bigint" ? Number(n) : Number(n);
+  return count > 0;
+}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { DuelAcceptPanel } from "@/components/duel-accept-panel";
 import { findDuelWithPseudos } from "@/lib/db/duels";
 
 type Props = {
@@ -71,10 +72,9 @@ export default async function DuelLobbyPage({ params }: Props) {
             <span className="font-medium">{formatDuration(duel.duration_seconds)}</span>
           </p>
         </div>
-        <p className="text-xs text-[color-mix(in_oklab,var(--foreground)50%,transparent)]">
-          Prochaine étape : bouton « Prêt », fermeture auto du trade à la fin du timer — à brancher.
-        </p>
       </div>
+
+      <DuelAcceptPanel duelId={duel.id} />
 
       <Link
         href="/"

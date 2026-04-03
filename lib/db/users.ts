@@ -1,3 +1,5 @@
+import { getAddress } from "viem";
+
 import { getDb } from "./index";
 
 /** Full user row when the username (`pseudo` column) exists. */
@@ -6,6 +8,24 @@ export async function findUserByPseudo(pseudo: string) {
     .selectFrom("users")
     .selectAll()
     .where("pseudo", "=", pseudo)
+    .executeTakeFirst();
+}
+
+/**
+ * Resolve a user from their EVM address (`wallet_address` set at signup).
+ * Input is normalized with viem `getAddress` so mixed-case input still matches DB.
+ */
+export async function findUserByWalletAddress(walletAddress: string) {
+  let normalized: string;
+  try {
+    normalized = getAddress(walletAddress.trim() as `0x${string}`);
+  } catch {
+    return undefined;
+  }
+  return getDb()
+    .selectFrom("users")
+    .selectAll()
+    .where("wallet_address", "=", normalized)
     .executeTakeFirst();
 }
 

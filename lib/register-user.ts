@@ -1,5 +1,6 @@
 import { ThresholdSignatureScheme } from "@dynamic-labs-wallet/core";
 import bcrypt from "bcryptjs";
+import { getAddress } from "viem";
 
 import {
   deleteUserById,
@@ -102,13 +103,16 @@ export async function registerUserWithWallet(
       backUpToClientShareService: true,
     });
 
-    await updateUserWalletAddress(userId, wallet.accountAddress);
+    const walletAddress = getAddress(
+      wallet.accountAddress as `0x${string}`,
+    );
+    await updateUserWalletAddress(userId, walletAddress);
 
     return {
       ok: true,
       id: userId,
       pseudo,
-      walletAddress: wallet.accountAddress,
+      walletAddress,
     };
   } catch (e) {
     console.error(e);

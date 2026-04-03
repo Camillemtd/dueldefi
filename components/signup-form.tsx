@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 type SuccessPayload = {
   username: string;
   walletAddress: string;
+  faucetTxHash?: string;
 };
 
 export function SignupForm() {
@@ -28,13 +29,18 @@ export function SignupForm() {
         error?: string;
         walletAddress?: string;
         username?: string;
+        faucetTxHash?: string;
       };
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
       }
       if (data.walletAddress && data.username) {
-        setSuccess({ username: data.username, walletAddress: data.walletAddress });
+        setSuccess({
+          username: data.username,
+          walletAddress: data.walletAddress,
+          faucetTxHash: data.faucetTxHash,
+        });
         setUsername("");
         setPassword("");
       }
@@ -61,6 +67,16 @@ export function SignupForm() {
             {success.walletAddress}
           </p>
         </div>
+        {success.faucetTxHash ? (
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
+              Faucet tx (getFreeDai)
+            </p>
+            <p className="break-all rounded-lg bg-[color-mix(in_oklab,var(--foreground)8%,transparent)] px-3 py-2 font-mono text-sm">
+              {success.faucetTxHash}
+            </p>
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={() => setSuccess(null)}

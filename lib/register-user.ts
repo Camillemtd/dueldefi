@@ -9,11 +9,22 @@ import {
   updateUserWalletAddress,
 } from "@/lib/db/users";
 import { authenticatedEvmClient } from "@/lib/dynamic/evm-client";
+import {
+  isGetFreeDaiConfigured,
+  sendGetFreeDaiTransaction,
+} from "@/lib/evm/get-free-dai";
 
 const PSEUDO_RE = /^[a-zA-Z0-9_-]{2,32}$/;
 
 export type RegisterResult =
-  | { ok: true; id: string; pseudo: string; walletAddress: string }
+  | {
+      ok: true;
+      id: string;
+      pseudo: string;
+      walletAddress: string;
+      /** Set when `getFreeDai` faucet tx was sent after signup (optional). */
+      faucetTxHash?: string;
+    }
   | {
       ok: false;
       code: "PSEUDO_TAKEN" | "VALIDATION" | "WALLET_FAILED" | "INTERNAL";
@@ -108,11 +119,25 @@ export async function registerUserWithWallet(
     );
     await updateUserWalletAddress(userId, walletAddress);
 
+    let faucetTxHash: string | undefined;
+    if (isGetFreeDaiConfigured()) {
+      try {
+        faucetTxHash = await sendGetFreeDaiTransaction({
+          evmClient: client,
+          walletAddress,
+          password,
+        });
+      } catch (e) {
+        console.error("[faucet] getFreeDai failed:", e);
+      }
+    }
+
     return {
       ok: true,
       id: userId,
       pseudo,
       walletAddress,
+      faucetTxHash,
     };
   } catch (e) {
     console.error(e);

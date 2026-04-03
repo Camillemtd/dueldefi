@@ -1,0 +1,30 @@
+/** Les paquets @dynamic-labs-wallet/* 0.0.x publient des .d.ts cassés (réf. ./src/index absente). Shims minimaux pour la compilation. */
+
+declare module "@dynamic-labs-wallet/core" {
+  export enum ThresholdSignatureScheme {
+    TWO_OF_TWO = "TWO_OF_TWO",
+    TWO_OF_THREE = "TWO_OF_THREE",
+    THREE_OF_FIVE = "THREE_OF_FIVE",
+  }
+}
+
+declare module "@dynamic-labs-wallet/node-evm" {
+  export class DynamicEvmWalletClient {
+    constructor(options: {
+      environmentId: string;
+      enableMPCAccelerator?: boolean;
+    });
+    authenticateApiToken(authToken: string): Promise<void>;
+    createWalletAccount(options: {
+      thresholdSignatureScheme: import("@dynamic-labs-wallet/core").ThresholdSignatureScheme;
+      password?: string;
+      onError?: (error: Error) => void;
+      backUpToClientShareService?: boolean;
+    }): Promise<{ accountAddress: string }>;
+    signMessage(options: {
+      accountAddress: string;
+      message: string;
+      password?: string;
+    }): Promise<string>;
+  }
+}

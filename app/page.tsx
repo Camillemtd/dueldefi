@@ -1,5 +1,6 @@
-import { HomeAuth } from "@/components/home-auth";
-import { GameLogo } from "@/components/game-ui";
+import { HomeAuth } from "@/components/home-auth"
+import { GameLogo } from "@/components/game-ui"
+import GainsCandlestickChart from "@/components/gains-candlestick-chart"
 
 export default function Home() {
   return (
@@ -10,7 +11,15 @@ export default function Home() {
           Arena · Wallet · Gains
         </p>
       </div>
+      <GainsCandlestickChart
+        pairIndex={0}
+        pairName="BTC/USD"
+        widthMinutes={15}
+        historyHours={8}
+        refreshInterval={1}
+        height={500}
+      />
       <HomeAuth />
     </main>
-  );
+  )
 }

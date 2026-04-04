@@ -8,6 +8,6 @@ export function serializeTradeForJson(t: GnsTrade) {
     tp: t.tp.toString(),
     sl: t.sl.toString(),
     positionSizeToken: t.positionSizeToken.toString(),
-    __placeholder: t.__placeholder.toString(),
+    __placeholder: String(t.__placeholder),
   };
 }

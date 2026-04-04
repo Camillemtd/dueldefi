@@ -200,10 +200,6 @@ export async function dynamicSignAndSendUniswapTx(params: {
   const transport = http(chain.rpcUrls.default.http[0]);
   const publicClient = createPublicClient({ chain, transport });
 
-  const nonce = await publicClient.getTransactionCount({
-    address: params.walletAddress,
-  });
-
   let gas: bigint;
   if (params.tx.gasLimit) {
     gas = BigInt(params.tx.gasLimit);
@@ -222,6 +218,10 @@ export async function dynamicSignAndSendUniswapTx(params: {
     });
     gas = applyGasBuffer(estimated, data);
   }
+
+  const nonce = await publicClient.getTransactionCount({
+    address: params.walletAddress,
+  });
 
   let serializable: TransactionSerializable;
 

@@ -84,6 +84,6 @@ export function buildGnsTradeFromDuelConfig(
     sl: BigInt(0),
     isCounterTrade: false,
     positionSizeToken,
-    __placeholder: BigInt(0),
+    __placeholder: 0,
   };
 }

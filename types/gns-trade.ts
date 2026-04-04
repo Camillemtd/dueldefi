@@ -18,5 +18,6 @@ export interface GnsTrade {
   sl: bigint;
   isCounterTrade: boolean;
   positionSizeToken: bigint;
-  __placeholder: bigint;
+  /** uint24 on-chain — laisser à 0. */
+  __placeholder: number;
 }

@@ -427,6 +427,7 @@ export function DuelPrepareView() {
           lastWsError={lastWsError}
           gainsWallet={gainsWallet}
           gainsChain={gainsChain}
+          walletPassword={password}
         />
 
         {!duel.myReady ? (

@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link"
+import { useCallback, useEffect, useState } from "react"
 
 import {
   gameBtnGhost,
@@ -12,60 +12,64 @@ import {
   gameTabActive,
   gameTabRow,
   gameTitle,
-} from "@/components/game-ui";
-import { LoginForm } from "@/components/login-form";
-import { SignupForm } from "@/components/signup-form";
-import { UniswapMainnetDemo } from "@/components/uniswap-mainnet-demo";
-import { WalletProfile } from "@/components/wallet-profile";
+} from "@/components/game-ui"
+import { LoginForm } from "@/components/login-form"
+import { SignupForm } from "@/components/signup-form"
+import { UniswapMainnetDemo } from "@/components/uniswap-mainnet-demo"
+import { WalletProfile } from "@/components/wallet-profile"
 
 type MeUser = {
-  id: string;
-  username: string;
-  walletAddress: string | null;
-};
+  id: string
+  username: string
+  walletAddress: string | null
+}
 
 export function HomeAuth() {
-  const [user, setUser] = useState<MeUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"signup" | "login">("login");
+  const [user, setUser] = useState<MeUser | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [mode, setMode] = useState<"signup" | "login">("login")
 
   const refresh = useCallback(async () => {
-    const r = await fetch("/api/auth/me", { credentials: "include" });
-    const data = (await r.json()) as { user: MeUser | null };
-    setUser(data.user ?? null);
-  }, []);
+    const r = await fetch("/api/auth/me", { credentials: "include" })
+    const data = (await r.json()) as { user: MeUser | null }
+    setUser(data.user ?? null)
+  }, [])
 
   /* eslint-disable react-hooks/set-state-in-effect -- initial /api/auth/me load */
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false
     void refresh().finally(() => {
-      if (!cancelled) queueMicrotask(() => setLoading(false));
-    });
+      if (!cancelled) queueMicrotask(() => setLoading(false))
+    })
     return () => {
-      cancelled = true;
-    };
-  }, [refresh]);
+      cancelled = true
+    }
+  }, [refresh])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    setUser(null);
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+    setUser(null)
   }
 
   if (loading) {
     return (
-      <p className={`${gameMuted} text-center font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-widest`}>
+      <p
+        className={`${gameMuted} text-center font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-widest`}
+      >
         Loading…
       </p>
-    );
+    )
   }
 
   if (user) {
-    const initial = user.username.trim().charAt(0).toUpperCase() || "?";
+    const initial = user.username.trim().charAt(0).toUpperCase() || "?"
 
     return (
       <div className="flex w-full max-w-2xl flex-col gap-8">
-        <div className={`${gamePanel} ${gamePanelTopAccent} relative overflow-visible`}>
+        <div
+          className={`${gamePanel} ${gamePanelTopAccent} relative overflow-visible`}
+        >
           <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-start sm:justify-between sm:p-8">
             <div className="flex items-start gap-4">
               <div
@@ -76,7 +80,9 @@ export function HomeAuth() {
               </div>
               <div>
                 <p className={gameLabel}>Fighter profile</p>
-                <p className={`${gameTitle} mt-1 text-2xl sm:text-3xl`}>{user.username}</p>
+                <p className={`${gameTitle} mt-1 text-2xl sm:text-3xl`}>
+                  {user.username}
+                </p>
                 {user.walletAddress ? (
                   <p className="mt-2 max-w-md break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
                     {user.walletAddress}
@@ -119,7 +125,7 @@ export function HomeAuth() {
           </>
         ) : null}
       </div>
-    );
+    )
   }
 
   return (
@@ -146,5 +152,5 @@ export function HomeAuth() {
         <SignupForm onSuccess={() => void refresh()} />
       )}
     </div>
-  );
+  )
 }

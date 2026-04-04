@@ -1,8 +1,15 @@
 "use client";
 
-import { useId, useMemo } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 
-import { gameLabel, gameMuted, gamePanel, gamePanelTopAccent } from "@/components/game-ui";
+import {
+  gameBtnDanger,
+  gameInput,
+  gameLabel,
+  gameMuted,
+  gamePanel,
+  gamePanelTopAccent,
+} from "@/components/game-ui";
 import {
   gainsPositionStreamKey,
   type GainsApiChain,
@@ -121,9 +128,12 @@ function PnlSparkline({ points, positive, gradientId }: SparklineProps) {
 type CardProps = {
   pos: GainsPositionUpdate;
   history: GainsPositionPnlTick[];
+  onCloseMarket: () => void;
+  closing: boolean;
+  canClose: boolean;
 };
 
-function PositionCard({ pos, history }: CardProps) {
+function PositionCard({ pos, history, onCloseMarket, closing, canClose }: CardProps) {
   const rawId = useId();
   const gradientId = `pnl-grad-${rawId.replace(/:/g, "")}`;
   const long = isLong(pos);
@@ -221,6 +231,32 @@ function PositionCard({ pos, history }: CardProps) {
           <p className={`${gameLabel} !text-[9px]`}>PnL evolution (live)</p>
           <PnlSparkline points={history} positive={pnlPositive} gradientId={gradientId} />
         </div>
+
+        <div className="border-t border-[var(--game-cyan-dim)]/30 pt-3">
+          <p className={`${gameMuted} mb-2 text-[11px]`}>
+            <code className="text-[var(--game-cyan)]">closeTradeMarket</code>(tradeIndex, expectedPrice) — index{" "}
+            <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
+              {pos.index ?? 0}
+            </span>
+            , prix mark{" "}
+            {currentPx != null ? (
+              <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
+                ${fmtUsd(currentPx, 2)}
+              </span>
+            ) : (
+              "—"
+            )}{" "}
+            → uint64 1e10
+          </p>
+          <button
+            type="button"
+            disabled={!canClose || closing}
+            onClick={onCloseMarket}
+            className={`${gameBtnDanger} py-2 text-xs`}
+          >
+            {closing ? "Closing…" : "Close market"}
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -233,6 +269,8 @@ export type GainsLivePositionsPanelProps = {
   lastWsError: string | null;
   gainsWallet: string | null;
   gainsChain: GainsApiChain;
+  /** Même mot de passe Dynamic que « Mark ready » / open trade — pas de 2ᵉ champ dédié fermeture. */
+  walletPassword?: string;
 };
 
 export function GainsLivePositionsPanel({
@@ -242,7 +280,57 @@ export function GainsLivePositionsPanel({
   lastWsError,
   gainsWallet,
   gainsChain,
+  walletPassword = "",
 }: GainsLivePositionsPanelProps) {
+  /** Si le parent a vidé le MP après un open, saisie minimale ici (sinon on réutilise `walletPassword`). */
+  const [localClosePassword, setLocalClosePassword] = useState("");
+  const [closingKey, setClosingKey] = useState<string | null>(null);
+  const [closeTx, setCloseTx] = useState<string | null>(null);
+  const [closeErr, setCloseErr] = useState<string | null>(null);
+
+  const signingPassword = walletPassword.trim() || localClosePassword.trim();
+
+  const closePosition = useCallback(
+    async (pos: GainsPositionUpdate) => {
+      const key = gainsPositionStreamKey(pos);
+      const mark =
+        typeof pos.currentPriceUsdDecimaled === "number" &&
+        Number.isFinite(pos.currentPriceUsdDecimaled)
+          ? pos.currentPriceUsdDecimaled
+          : null;
+      if (!signingPassword || mark == null) return;
+
+      setCloseErr(null);
+      setCloseTx(null);
+      setClosingKey(key);
+      try {
+        const r = await fetch("/api/trade/close-market", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            password: signingPassword,
+            tradeIndex: pos.index ?? 0,
+            currentPriceUsdDecimaled: mark,
+          }),
+        });
+        const data = (await r.json()) as { error?: string; txHash?: string };
+        if (!r.ok) {
+          setCloseErr(data.error ?? "Close failed.");
+          return;
+        }
+        if (data.txHash) {
+          setCloseTx(data.txHash);
+        }
+      } catch {
+        setCloseErr("Network error.");
+      } finally {
+        setClosingKey(null);
+      }
+    },
+    [signingPassword],
+  );
+
   const cards = useMemo(() => {
     return positions.map((pos) => {
       const key = gainsPositionStreamKey(pos);
@@ -253,6 +341,9 @@ export function GainsLivePositionsPanel({
       };
     });
   }, [positions, pnlHistoryByKey]);
+
+  const markReady = (p: GainsPositionUpdate) =>
+    typeof p.currentPriceUsdDecimaled === "number" && Number.isFinite(p.currentPriceUsdDecimaled);
 
   return (
     <div className={`${gamePanel} ${gamePanelTopAccent} relative space-y-4 p-4 text-xs`}>
@@ -278,11 +369,48 @@ export function GainsLivePositionsPanel({
       ) : null}
       {lastWsError ? <p className="text-sm text-[var(--game-danger)]">{lastWsError}</p> : null}
 
+      {positions.length > 0 && !walletPassword.trim() ? (
+        <div className="space-y-2 rounded-sm border border-[var(--game-amber)]/35 bg-[rgba(255,200,74,0.06)] px-3 py-2">
+          <p className={`${gameMuted} text-[11px]`}>
+            Prefer filling the password in <span className="text-[var(--game-cyan)]">Your settings</span> above when
+            visible. If it was cleared after open, enter it once here to close.
+          </p>
+          <label className="block space-y-1">
+            <span className={`${gameLabel} !text-[9px]`}>Dynamic password (fallback)</span>
+            <input
+              type="password"
+              value={localClosePassword}
+              onChange={(e) => setLocalClosePassword(e.target.value)}
+              placeholder="Only if empty in Your settings"
+              className={gameInput}
+              autoComplete="current-password"
+            />
+          </label>
+        </div>
+      ) : null}
+
+      {positions.length > 0 ? (
+        <>
+          {closeErr ? <p className="text-sm text-[var(--game-danger)]">{closeErr}</p> : null}
+          {closeTx ? (
+            <p className="break-all font-[family-name:var(--font-share-tech)] text-[11px] text-[var(--game-cyan)]">
+              Close tx: {closeTx}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+
       {positions.length > 0 ? (
         <ul className="space-y-4">
           {cards.map(({ pos, key, history }, i) => (
             <li key={`${key}-${i}`}>
-              <PositionCard pos={pos} history={history} />
+              <PositionCard
+                pos={pos}
+                history={history}
+                onCloseMarket={() => void closePosition(pos)}
+                closing={closingKey === key}
+                canClose={Boolean(signingPassword && markReady(pos))}
+              />
             </li>
           ))}
         </ul>

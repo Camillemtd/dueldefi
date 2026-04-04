@@ -35,7 +35,7 @@ export async function executeUniswapClassicSwapFlow(params: {
   amountStr: string;
   walletAddress: Address;
   evmClient: DynamicEvmWalletClient;
-  password: string;
+  password?: string;
   slippageTolerance?: number;
 }): Promise<ClassicSwapFlowResult> {
   const slippage = params.slippageTolerance ?? 0.5;

@@ -1,0 +1,88 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAddress } from "viem";
+
+import { getSessionFromRequest } from "@/lib/auth/session";
+import { authenticatedEvmClient } from "@/lib/dynamic/evm-client";
+import { findUserById } from "@/lib/db/users";
+import { claimTestUsdcForWallet } from "@/lib/evm/claim-test-usdc";
+import { isGetFreeDaiConfigured } from "@/lib/evm/get-free-dai";
+
+export const runtime = "nodejs";
+
+export async function POST(request: NextRequest) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  let password: string | undefined;
+  try {
+    const raw = await request.json();
+    if (raw && typeof raw === "object" && "password" in raw) {
+      const p = (raw as { password: unknown }).password;
+      if (typeof p === "string" && p.trim()) {
+        password = p;
+      }
+    }
+  } catch {
+    /* corps vide ok */
+  }
+
+  if (!isGetFreeDaiConfigured()) {
+    return NextResponse.json(
+      {
+        error:
+          "Faucet non configuré sur le serveur (USDC_FAUCET_CONTRACT_ADDRESS, FAUCET_RPC_URL, FAUCET_CHAIN_ID).",
+      },
+      { status: 503 },
+    );
+  }
+
+  const user = await findUserById(session.userId);
+  if (!user || user.pseudo !== session.pseudo) {
+    return NextResponse.json({ error: "Session invalide." }, { status: 401 });
+  }
+
+  if (!user.wallet_address) {
+    return NextResponse.json({ error: "Aucun wallet sur ce compte." }, { status: 400 });
+  }
+
+  let walletAddress: `0x${string}`;
+  try {
+    walletAddress = getAddress(user.wallet_address.trim() as `0x${string}`);
+  } catch {
+    return NextResponse.json({ error: "Adresse wallet invalide." }, { status: 500 });
+  }
+
+  const authToken = process.env.DYNAMIC_AUTH_TOKEN;
+  const environmentId = process.env.DYNAMIC_ENVIRONMENT_ID;
+  if (!authToken || !environmentId) {
+    return NextResponse.json({ error: "Configuration Dynamic manquante." }, { status: 500 });
+  }
+
+  try {
+    const evmClient = await authenticatedEvmClient({ authToken, environmentId });
+    const { gasFundTxHash, faucetTxHash } = await claimTestUsdcForWallet({
+      evmClient,
+      walletAddress,
+      ...(password ? { password } : {}),
+    });
+
+    return NextResponse.json({
+      ok: true,
+      faucetTxHash,
+      ...(gasFundTxHash ? { gasFundTxHash } : {}),
+    });
+  } catch (e) {
+    console.error("[claim-faucet]", e);
+    return NextResponse.json(
+      {
+        error:
+          e instanceof Error
+            ? e.message
+            : "Échec du faucet (gas natif, RPC, ou mot de passe Dynamic si wallet chiffré).",
+      },
+      { status: 502 },
+    );
+  }
+}

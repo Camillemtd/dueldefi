@@ -37,7 +37,7 @@ function tradeToTuple(t: GnsTrade) {
 export async function sendGnsOpenTrade(params: {
   evmClient: DynamicEvmWalletClient;
   walletAddress: Address;
-  password: string;
+  password?: string;
   trade: GnsTrade;
 }): Promise<`0x${string}`> {
   const referrer = (
@@ -78,7 +78,7 @@ export async function sendGnsOpenTrade(params: {
   const hash = await dynamicSignAndSendTransaction({
     evmClient: params.evmClient,
     walletAddress: params.walletAddress,
-    password: params.password,
+    ...(params.password?.trim() ? { password: params.password } : {}),
     to: CONTRACT_GAINS_ARBITRUM_SEPOLIA,
     data,
   });

@@ -108,7 +108,8 @@ async function simulateCallBeforeGas(
 export async function dynamicSignAndSendTransaction(params: {
   evmClient: DynamicEvmWalletClient;
   walletAddress: Address;
-  password: string;
+  /** Omit unless the wallet was created with a Dynamic password. */
+  password?: string;
   to: Address;
   data: Hex;
 }): Promise<`0x${string}`> {
@@ -148,7 +149,7 @@ export async function dynamicSignAndSendTransaction(params: {
   const serializedSigned = await params.evmClient.signTransaction({
     senderAddress: params.walletAddress,
     transaction: tx,
-    password: params.password,
+    ...(params.password?.trim() ? { password: params.password } : {}),
   });
 
   try {
@@ -174,7 +175,7 @@ export async function dynamicSignAndSendTransaction(params: {
 export async function dynamicSignAndSendUniswapTx(params: {
   evmClient: DynamicEvmWalletClient;
   walletAddress: Address;
-  password: string;
+  password?: string;
   tx: UniswapApiTx;
   /** Réseau RPC utilisé pour nonce, gas et diffusion (doit correspondre à `tx.chainId`). */
   chain: Chain;
@@ -266,7 +267,7 @@ export async function dynamicSignAndSendUniswapTx(params: {
   const serializedSigned = await params.evmClient.signTransaction({
     senderAddress: params.walletAddress,
     transaction: serializable,
-    password: params.password,
+    ...(params.password?.trim() ? { password: params.password } : {}),
   });
 
   return publicClient.sendRawTransaction({

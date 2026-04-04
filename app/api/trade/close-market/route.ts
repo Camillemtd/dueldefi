@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { getAddress } from "viem";
 
 import { getSessionFromRequest } from "@/lib/auth/session";
@@ -33,16 +32,11 @@ export async function POST(request: NextRequest) {
 
   const b = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
 
-  const password = typeof b.password === "string" ? b.password : "";
+  const dynamicPassword =
+    typeof b.password === "string" && b.password.trim() ? b.password : undefined;
+
   const tradeIndexRaw = b.tradeIndex;
   const priceRaw = b.currentPriceUsdDecimaled;
-
-  if (!password) {
-    return NextResponse.json(
-      { error: "password is required (Dynamic wallet signing)." },
-      { status: 400 },
-    );
-  }
 
   const tradeIndex =
     typeof tradeIndexRaw === "number"
@@ -81,11 +75,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Session invalid." }, { status: 401 });
   }
 
-  const passwordOk = await bcrypt.compare(password, user.password_hash);
-  if (!passwordOk) {
-    return NextResponse.json({ error: "Invalid password." }, { status: 401 });
-  }
-
   if (!user.wallet_address) {
     return NextResponse.json(
       { error: "User has no wallet_address." },
@@ -121,7 +110,7 @@ export async function POST(request: NextRequest) {
     const txHash = await sendGnsCloseTradeMarket({
       evmClient,
       walletAddress,
-      password,
+      ...(dynamicPassword ? { password: dynamicPassword } : {}),
       tradeIndex,
       expectedPriceUint64,
     });

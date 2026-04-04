@@ -33,7 +33,7 @@ type SwapResult = {
 export function UniswapMainnetDemo() {
   const [meta, setMeta] = useState<DemoMeta | null>(null);
   const [metaErr, setMetaErr] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
+  const [walletPassword, setWalletPassword] = useState("");
   const [busy, setBusy] = useState<"eth_usdc" | "usdc_eth" | null>(null);
   const [last, setLast] = useState<SwapResult | null>(null);
 
@@ -62,17 +62,16 @@ export function UniswapMainnetDemo() {
 
   async function run(direction: "eth_to_usdc" | "usdc_to_eth") {
     setLast(null);
-    if (!password.trim()) {
-      setLast({ error: "Entrez le mot de passe du wallet (Dynamic)." });
-      return;
-    }
     setBusy(direction === "eth_to_usdc" ? "eth_usdc" : "usdc_eth");
     try {
       const res = await fetch("/api/trade/uniswap-mainnet-demo", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, direction }),
+        body: JSON.stringify({
+          direction,
+          ...(walletPassword.trim() ? { password: walletPassword } : {}),
+        }),
       });
       const data = (await res.json()) as SwapResult;
       if (!res.ok) {
@@ -135,13 +134,14 @@ export function UniswapMainnetDemo() {
 
         <label className="block">
           <span className={`${gameMuted} text-xs uppercase tracking-wider`}>
-            Mot de passe wallet
+            Mot de passe wallet Dynamic (optionnel)
           </span>
           <input
             type="password"
             autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={walletPassword}
+            onChange={(e) => setWalletPassword(e.target.value)}
+            placeholder="Si backup chiffré (ancien compte)"
             className="mt-1 w-full rounded-sm border-2 border-[var(--game-cyan-dim)] bg-[rgba(4,2,12,0.85)] px-3 py-2 font-[family-name:var(--font-share-tech)] text-sm text-[var(--game-text)] outline-none focus:border-[var(--game-cyan)]"
           />
         </label>

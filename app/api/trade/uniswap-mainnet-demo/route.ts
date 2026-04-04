@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { formatUnits, getAddress, type Address } from "viem";
 
 import { getSessionFromRequest } from "@/lib/auth/session";
@@ -95,24 +94,14 @@ export async function POST(request: NextRequest) {
       ? (body as Record<string, unknown>)
       : {};
 
-  const password = typeof b.password === "string" ? b.password : "";
   const direction = b.direction === "usdc_to_eth" ? "usdc_to_eth" : "eth_to_usdc";
 
-  if (!password) {
-    return NextResponse.json(
-      { error: "Mot de passe requis pour signer avec Dynamic." },
-      { status: 400 },
-    );
-  }
+  const dynamicPassword =
+    typeof b.password === "string" && b.password.trim() ? b.password : undefined;
 
   const user = await findUserById(session.userId);
   if (!user || user.pseudo !== session.pseudo) {
     return NextResponse.json({ error: "Session invalide." }, { status: 401 });
-  }
-
-  const passwordOk = await bcrypt.compare(password, user.password_hash);
-  if (!passwordOk) {
-    return NextResponse.json({ error: "Mot de passe incorrect." }, { status: 401 });
   }
 
   if (!user.wallet_address) {
@@ -166,7 +155,7 @@ export async function POST(request: NextRequest) {
       amountStr,
       walletAddress,
       evmClient,
-      password,
+      ...(dynamicPassword ? { password: dynamicPassword } : {}),
       slippageTolerance: 0.5,
     });
 

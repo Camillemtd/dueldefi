@@ -269,7 +269,7 @@ export type GainsLivePositionsPanelProps = {
   lastWsError: string | null;
   gainsWallet: string | null;
   gainsChain: GainsApiChain;
-  /** Même mot de passe Dynamic que « Mark ready » / open trade — pas de 2ᵉ champ dédié fermeture. */
+  /** Pour fermeture on-chain si le backup Dynamic est chiffré (wallet ancien). */
   walletPassword?: string;
 };
 
@@ -282,7 +282,6 @@ export function GainsLivePositionsPanel({
   gainsChain,
   walletPassword = "",
 }: GainsLivePositionsPanelProps) {
-  /** Si le parent a vidé le MP après un open, saisie minimale ici (sinon on réutilise `walletPassword`). */
   const [localClosePassword, setLocalClosePassword] = useState("");
   const [closingKey, setClosingKey] = useState<string | null>(null);
   const [closeTx, setCloseTx] = useState<string | null>(null);
@@ -298,7 +297,7 @@ export function GainsLivePositionsPanel({
         Number.isFinite(pos.currentPriceUsdDecimaled)
           ? pos.currentPriceUsdDecimaled
           : null;
-      if (!signingPassword || mark == null) return;
+      if (mark == null) return;
 
       setCloseErr(null);
       setCloseTx(null);
@@ -309,7 +308,7 @@ export function GainsLivePositionsPanel({
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            password: signingPassword,
+            ...(signingPassword ? { password: signingPassword } : {}),
             tradeIndex: pos.index ?? 0,
             currentPriceUsdDecimaled: mark,
           }),
@@ -372,16 +371,16 @@ export function GainsLivePositionsPanel({
       {positions.length > 0 && !walletPassword.trim() ? (
         <div className="space-y-2 rounded-sm border border-[var(--game-amber)]/35 bg-[rgba(255,200,74,0.06)] px-3 py-2">
           <p className={`${gameMuted} text-[11px]`}>
-            Prefer filling the password in <span className="text-[var(--game-cyan)]">Your settings</span> above when
-            visible. If it was cleared after open, enter it once here to close.
+            Si la fermeture échoue (déchiffrement Dynamic), saisis le mot de passe wallet une fois ici ou dans le
+            champ du dessus.
           </p>
           <label className="block space-y-1">
-            <span className={`${gameLabel} !text-[9px]`}>Dynamic password (fallback)</span>
+            <span className={`${gameLabel} !text-[9px]`}>Mot de passe Dynamic (secours)</span>
             <input
               type="password"
               value={localClosePassword}
               onChange={(e) => setLocalClosePassword(e.target.value)}
-              placeholder="Only if empty in Your settings"
+              placeholder="Optionnel"
               className={gameInput}
               autoComplete="current-password"
             />
@@ -409,7 +408,7 @@ export function GainsLivePositionsPanel({
                 history={history}
                 onCloseMarket={() => void closePosition(pos)}
                 closing={closingKey === key}
-                canClose={Boolean(signingPassword && markReady(pos))}
+                canClose={markReady(pos)}
               />
             </li>
           ))}

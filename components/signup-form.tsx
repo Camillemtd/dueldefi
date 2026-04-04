@@ -4,8 +4,14 @@ import { type FormEvent, useState } from "react";
 
 import { gameBtnPrimary, gameInput, gameLabel, gameMuted, gamePanel, gamePanelTopAccent, gameTitle } from "@/components/game-ui";
 
+export type SignupSuccessPayload = {
+  faucetStatus: "sent" | "not_configured" | "failed";
+  faucetError?: string;
+  walletAddress: string;
+};
+
 type Props = {
-  onSuccess?: () => void | Promise<void>;
+  onSuccess?: (info?: SignupSuccessPayload) => void | Promise<void>;
 };
 
 export function SignupForm({ onSuccess }: Props) {
@@ -25,14 +31,25 @@ export function SignupForm({ onSuccess }: Props) {
         credentials: "include",
         body: JSON.stringify({ pseudo: username, password }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        walletAddress?: string;
+        faucetStatus?: SignupSuccessPayload["faucetStatus"];
+        faucetError?: string;
+      };
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
       }
       setUsername("");
       setPassword("");
-      await onSuccess?.();
+      const walletAddress = typeof data.walletAddress === "string" ? data.walletAddress : "";
+      const faucetStatus = data.faucetStatus ?? "not_configured";
+      await onSuccess?.({
+        walletAddress,
+        faucetStatus,
+        ...(typeof data.faucetError === "string" ? { faucetError: data.faucetError } : {}),
+      });
     } catch {
       setError("Network error. Check your connection.");
     } finally {
@@ -49,7 +66,9 @@ export function SignupForm({ onSuccess }: Props) {
         <p className={gameLabel}>New fighter</p>
         <h1 className={`${gameTitle} text-xl sm:text-2xl`}>Create account</h1>
         <p className={gameMuted}>
-          Pick a username and password. A Dynamic embedded wallet is created on the server; the same password is used to sign your trades.
+          Pick a username and password for your account. New wallets are created without a Dynamic wallet password. If
+          your wallet was created with encryption (older accounts), use the optional Dynamic wallet field when trading
+          — usually the same password as below.
         </p>
       </div>
 

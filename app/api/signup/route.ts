@@ -46,6 +46,8 @@ export async function POST(request: Request) {
       id: result.id,
       username: result.pseudo,
       walletAddress: result.walletAddress,
+      faucetStatus: result.faucetStatus,
+      ...(result.faucetError ? { faucetError: result.faucetError } : {}),
       ...(result.gasFundTxHash
         ? { gasFundTxHash: result.gasFundTxHash }
         : {}),

@@ -89,20 +89,20 @@ export function DuelPrepareView() {
   const [readyLoading, setReadyLoading] = useState(false);
   const [readyError, setReadyError] = useState<string | null>(null);
 
-  const [password, setPassword] = useState("");
+  /** Wallets créés avec mot de passe Dynamic (anciens comptes) : même valeur qu’à l’inscription si tu ne l’as pas changée. */
+  const [dynamicWalletPassword, setDynamicWalletPassword] = useState("");
+
   const [execLoading, setExecLoading] = useState(false);
   const [execError, setExecError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   /** Single auto attempt after countdown (avoids double submit). */
   const autoSignStartedRef = useRef(false);
-  const passwordRef = useRef(password);
   const txHashRef = useRef(txHash);
   const onExecuteRef = useRef<() => Promise<void>>(async () => {});
   const scheduleSignTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Avoid rescheduling the same `readyBothAt` on every poll. */
   const scheduledForReadyBothAtRef = useRef<string | null>(null);
 
-  passwordRef.current = password;
   txHashRef.current = txHash;
 
   const loadDuel = useCallback(async () => {
@@ -143,7 +143,6 @@ export function DuelPrepareView() {
         anchor &&
         canSign &&
         !txHashRef.current &&
-        passwordRef.current.trim() &&
         !alreadyScheduledForAnchor
       ) {
         scheduledForReadyBothAtRef.current = anchor;
@@ -156,7 +155,6 @@ export function DuelPrepareView() {
         scheduleSignTimeoutRef.current = setTimeout(() => {
           scheduleSignTimeoutRef.current = null;
           if (txHashRef.current || autoSignStartedRef.current) return;
-          if (!passwordRef.current.trim()) return;
           autoSignStartedRef.current = true;
           void onExecuteRef.current();
         }, delay);
@@ -231,10 +229,6 @@ export function DuelPrepareView() {
 
   async function onMarkReady() {
     if (!duelId) return;
-    if (!password.trim()) {
-      setReadyError("Enter your wallet password before marking ready (it stays in your browser).");
-      return;
-    }
     setReadyError(null);
     setReadyLoading(true);
     try {
@@ -266,16 +260,20 @@ export function DuelPrepareView() {
   }
 
   const onExecute = useCallback(async () => {
-    if (!duelId || !password.trim()) return;
+    if (!duelId) return;
     subscribePositions(gainsChain);
     setExecError(null);
     setExecLoading(true);
     try {
+      const body =
+        dynamicWalletPassword.trim().length > 0
+          ? JSON.stringify({ password: dynamicWalletPassword })
+          : JSON.stringify({});
       const res = await fetch(`/api/duels/${duelId}/execute-trade`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ password }),
+        body,
       });
       const data = (await res.json()) as { error?: string; txHash?: string };
       if (!res.ok) {
@@ -284,14 +282,13 @@ export function DuelPrepareView() {
       }
       if (data.txHash) {
         setTxHash(data.txHash);
-        setPassword("");
       }
     } catch {
       setExecError("Network error.");
     } finally {
       setExecLoading(false);
     }
-  }, [duelId, password, gainsChain, subscribePositions]);
+  }, [duelId, dynamicWalletPassword, gainsChain, subscribePositions]);
 
   onExecuteRef.current = onExecute;
 
@@ -414,11 +411,31 @@ export function DuelPrepareView() {
             <span className="text-[var(--game-text-muted)]">· creator, opponent</span>
           </p>
           <p className={gameMuted}>
-            Enter your wallet password <span className="font-semibold text-[var(--game-text)]">before</span> marking
-            ready. Countdown 3 → 1 then{" "}
-            <span className="font-semibold text-[var(--game-magenta)]">auto-sign</span> on both sides.
+            Configure your pair and mark ready. Countdown 3 → 1 puis{" "}
+            <span className="font-semibold text-[var(--game-magenta)]">signature auto</span>. Si ton wallet a été
+            créé avec un mot de passe Dynamic, remplis le champ ci‑dessous (souvent le même qu’à l’inscription).
           </p>
         </div>
+
+        {participant ? (
+          <div className={`${gamePanel} space-y-2 p-4`}>
+            <label className="block space-y-1.5">
+              <span className={gameLabel}>Mot de passe wallet Dynamic (optionnel)</span>
+              <p className={`${gameMuted} text-[11px]`}>
+                Obligatoire uniquement si tu vois une erreur du type « Password is required for decryption » — comptes
+                créés avant le passage aux wallets sans mot de passe.
+              </p>
+              <input
+                type="password"
+                value={dynamicWalletPassword}
+                onChange={(e) => setDynamicWalletPassword(e.target.value)}
+                placeholder="Laisser vide si compte récent"
+                className={gameInput}
+                autoComplete="current-password"
+              />
+            </label>
+          </div>
+        ) : null}
 
         <GainsLivePositionsPanel
           positions={positions}
@@ -427,7 +444,7 @@ export function DuelPrepareView() {
           lastWsError={lastWsError}
           gainsWallet={gainsWallet}
           gainsChain={gainsChain}
-          walletPassword={password}
+          walletPassword={dynamicWalletPassword}
         />
 
         {!duel.myReady ? (
@@ -435,17 +452,6 @@ export function DuelPrepareView() {
             <h2 className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)]">
               Your settings
             </h2>
-            <label className="block space-y-2">
-              <span className={gameLabel}>Wallet password (Dynamic)</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Used to sign after countdown"
-                className={gameInput}
-                autoComplete="current-password"
-              />
-            </label>
             <div className="space-y-2">
               <span className={gameLabel}>Trading pair</span>
               <p className={`${gameMuted} text-xs`}>
@@ -495,7 +501,7 @@ export function DuelPrepareView() {
             ) : null}
             <button
               type="button"
-              disabled={readyLoading || !password.trim()}
+              disabled={readyLoading}
               onClick={() => void onMarkReady()}
               className={gameBtnPrimary}
             >
@@ -515,8 +521,7 @@ export function DuelPrepareView() {
                   {" "}
                   · ref price {selectedReferencePrice}
                 </>
-              ) : null}{" "}
-              · password kept for auto-sign
+              ) : null}
             </p>
           </div>
         )}
@@ -545,7 +550,7 @@ export function DuelPrepareView() {
               Trade launch
             </h2>
             {execLoading && !txHash ? (
-              <p className={gameMuted}>Signing in progress (password entered above)…</p>
+              <p className={gameMuted}>Signing in progress…</p>
             ) : null}
             {!execLoading && !txHash && !execError ? (
               <p className={gameMuted}>Auto-starting…</p>
@@ -553,19 +558,9 @@ export function DuelPrepareView() {
             {execError ? (
               <div className="space-y-3">
                 <p className="text-sm text-[var(--game-danger)]">{execError}</p>
-                <label className="block space-y-2">
-                  <span className={gameLabel}>Corriger le mot de passe</span>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={gameInput}
-                    autoComplete="current-password"
-                  />
-                </label>
                 <button
                   type="button"
-                  disabled={execLoading || !password.trim()}
+                  disabled={execLoading}
                   onClick={() => void onRetrySign()}
                   className="w-full rounded-sm border-2 border-[var(--game-magenta)] bg-transparent py-2.5 text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)] transition enabled:hover:bg-[rgba(255,61,154,0.12)] disabled:opacity-50"
                 >

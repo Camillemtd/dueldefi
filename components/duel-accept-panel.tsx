@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parseUnits } from "viem";
 
 import {
+  gameBtnGhost,
   gameBtnPrimary,
+  gameInput,
   gameLabel,
   gameMuted,
   gamePanel,
@@ -40,6 +41,9 @@ type BalanceApi = {
 type Props = { duelId: string };
 
 const LOBBY_POLL_MS = 1000;
+/** Relectures du solde après tx faucet (mise en chaine). */
+const BALANCE_POLL_INTERVAL_MS = 1500;
+const BALANCE_POLL_MAX_ATTEMPTS = 45;
 
 function formatUsdcLabel(raw: string) {
   const n = Number(raw);
@@ -61,8 +65,19 @@ export function DuelAcceptPanel({ duelId }: Props) {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  /** Après inscription : pourquoi le compte n’a peut‑être pas reçu d’USDC test automatiquement. */
+  const [fundingNotice, setFundingNotice] = useState<string | null>(null);
+  const [claimLoading, setClaimLoading] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimPassword, setClaimPassword] = useState("");
+  const [confirmingUsdc, setConfirmingUsdc] = useState(false);
+  /** Après polling : le RPC voit bien assez d’USDC pour la mise. */
+  const [balanceCoversStake, setBalanceCoversStake] = useState(false);
+  /** Évite que le useEffect balance n’écrase le solde pendant le polling post-faucet. */
+  const balancePollInProgressRef = useRef(false);
+  const pollAbortRef = useRef<AbortController | null>(null);
 
-  const loadDuel = useCallback(async (opts?: { silent?: boolean }) => {
+  const loadDuel = useCallback(async (opts?: { silent?: boolean }): Promise<DuelApi | null> => {
     const silent = opts?.silent === true;
     setDuelError(null);
     if (!silent) setDuelLoading(true);
@@ -72,43 +87,121 @@ export function DuelAcceptPanel({ duelId }: Props) {
       if (!r.ok) {
         setDuel(null);
         setDuelError(data.error ?? "Duel not found.");
-        return;
+        return null;
       }
       setDuel(data);
+      return data;
     } catch {
       setDuel(null);
       setDuelError("Network error.");
+      return null;
     } finally {
       if (!silent) setDuelLoading(false);
     }
   }, [duelId]);
 
-  const loadBalance = useCallback(async () => {
-    setBalanceLoading(true);
-    setBalance(null);
+  const fetchCollateralBalance = useCallback(async (): Promise<BalanceApi | null> => {
     try {
       const r = await fetch("/api/wallet/collateral-balance", { credentials: "include" });
       const data = (await r.json()) as BalanceApi & { error?: string };
       if (r.status === 401) {
-        setBalance({ configured: false, error: "Session expired — sign in again." });
-        return;
+        return { configured: false, error: "Session expired — sign in again." };
       }
-      setBalance({
+      return {
         configured: Boolean(data.configured),
         balanceRaw: data.balanceRaw,
         decimals: data.decimals,
         formatted: data.formatted,
         error: data.error,
-      });
+      };
     } catch {
-      setBalance({ configured: false, error: "Network error." });
-    } finally {
-      setBalanceLoading(false);
+      return { configured: false, error: "Network error." };
     }
   }, []);
 
+  const loadBalance = useCallback(async () => {
+    setBalanceLoading(true);
+    setBalance(null);
+    try {
+      const b = await fetchCollateralBalance();
+      if (b) setBalance(b);
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [fetchCollateralBalance]);
+
+  const pollBalanceUntilStake = useCallback(
+    async (stakeUsdc: string) => {
+      let need: bigint;
+      try {
+        need = parseUnits(stakeUsdc, 6);
+      } catch {
+        return;
+      }
+
+      pollAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      pollAbortRef.current = ctrl;
+
+      setConfirmingUsdc(true);
+      setBalanceLoading(true);
+      setBalanceCoversStake(false);
+      try {
+        for (let i = 0; i < BALANCE_POLL_MAX_ATTEMPTS; i++) {
+          if (ctrl.signal.aborted) return;
+
+          const b = await fetchCollateralBalance();
+          if (b) setBalance(b);
+
+          if (b?.configured && b.balanceRaw !== undefined && b.balanceRaw !== "") {
+            try {
+              if (BigInt(b.balanceRaw) >= need) {
+                setFundingNotice(null);
+                setBalanceCoversStake(true);
+                return;
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+
+          if (i >= BALANCE_POLL_MAX_ATTEMPTS - 1) break;
+
+          try {
+            await new Promise<void>((resolve, reject) => {
+              const tid = setTimeout(resolve, BALANCE_POLL_INTERVAL_MS);
+              ctrl.signal.addEventListener(
+                "abort",
+                () => {
+                  clearTimeout(tid);
+                  reject(new DOMException("Aborted", "AbortError"));
+                },
+                { once: true },
+              );
+            });
+          } catch {
+            return;
+          }
+        }
+      } finally {
+        setBalanceLoading(false);
+        setConfirmingUsdc(false);
+        if (pollAbortRef.current === ctrl) {
+          pollAbortRef.current = null;
+        }
+      }
+    },
+    [fetchCollateralBalance],
+  );
+
   useEffect(() => {
     prepRedirectedRef.current = false;
+  }, [duelId]);
+
+  useEffect(() => {
+    return () => {
+      pollAbortRef.current?.abort();
+    };
   }, [duelId]);
 
   useEffect(() => {
@@ -140,11 +233,13 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
   useEffect(() => {
     if (!shouldLoadBalance) return;
+    if (balancePollInProgressRef.current) return;
     void loadBalance();
   }, [shouldLoadBalance, loadBalance]);
 
   const canAccept = useMemo(() => {
-    if (!duel || !balance?.configured || !balance.balanceRaw) return false;
+    if (!duel || !balance?.configured) return false;
+    if (balance.balanceRaw === undefined || balance.balanceRaw === "") return false;
     try {
       const need = parseUnits(duel.stakeUsdc, 6);
       return BigInt(balance.balanceRaw) >= need;
@@ -152,6 +247,42 @@ export function DuelAcceptPanel({ duelId }: Props) {
       return false;
     }
   }, [duel, balance]);
+
+  async function onClaimFaucet() {
+    setClaimError(null);
+    setFundingNotice(null);
+    setBalanceCoversStake(false);
+    setClaimLoading(true);
+    try {
+      const body =
+        claimPassword.trim().length > 0
+          ? JSON.stringify({ password: claimPassword })
+          : JSON.stringify({});
+      const r = await fetch("/api/wallet/claim-faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body,
+      });
+      const data = (await r.json()) as { error?: string };
+      if (!r.ok) {
+        setClaimError(data.error ?? "Faucet échoué.");
+        return;
+      }
+      const stake = duel?.stakeUsdc;
+      if (!stake) return;
+      balancePollInProgressRef.current = true;
+      try {
+        await pollBalanceUntilStake(stake);
+      } finally {
+        balancePollInProgressRef.current = false;
+      }
+    } catch {
+      setClaimError("Erreur réseau.");
+    } finally {
+      setClaimLoading(false);
+    }
+  }
 
   async function onJoin() {
     setJoinError(null);
@@ -218,9 +349,47 @@ export function DuelAcceptPanel({ duelId }: Props) {
           </button>
         </div>
         {authMode === "login" ? (
-          <LoginForm onSuccess={() => void loadDuel()} />
+          <LoginForm
+            onSuccess={async () => {
+              setFundingNotice(null);
+              setBalanceCoversStake(false);
+              await loadDuel();
+              void loadBalance();
+            }}
+          />
         ) : (
-          <SignupForm onSuccess={() => void loadDuel()} />
+          <SignupForm
+            onSuccess={async (info) => {
+              setFundingNotice(null);
+              setBalanceCoversStake(false);
+              if (info?.faucetStatus === "not_configured") {
+                setFundingNotice(
+                  "Le serveur n’a pas le faucet USDC configuré (USDC_FAUCET_CONTRACT_ADDRESS, FAUCET_RPC_URL, FAUCET_CHAIN_ID). Envoie manuellement des USDC sur la chaîne faucet à l’adresse du wallet affichée après inscription, ou configure ces variables.",
+                );
+              } else if (info?.faucetStatus === "failed") {
+                setFundingNotice(
+                  `Le faucet automatique a échoué (souvent : pas de gas natif — définis PRIVATE_KEY_GAS_DISPATCHER sur le serveur, ou RPC/contrat incorrect). Détail : ${info.faucetError ?? "erreur inconnue"}`,
+                );
+              }
+
+              const willPoll = info?.faucetStatus === "sent";
+              if (willPoll) {
+                balancePollInProgressRef.current = true;
+              }
+              try {
+                const d = await loadDuel();
+                if (willPoll && d?.stakeUsdc) {
+                  await pollBalanceUntilStake(d.stakeUsdc);
+                } else {
+                  void loadBalance();
+                }
+              } finally {
+                if (willPoll) {
+                  balancePollInProgressRef.current = false;
+                }
+              }
+            }}
+          />
         )}
       </div>
     );
@@ -292,13 +461,33 @@ export function DuelAcceptPanel({ duelId }: Props) {
         </p>
       </div>
 
-      {balanceLoading ? (
-        <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider`}>
-          Reading balance…
+      {fundingNotice ? (
+        <p className="rounded-sm border border-[var(--game-amber)]/50 bg-[rgba(255,200,74,0.1)] px-3 py-2 text-xs text-[var(--game-amber)]">
+          {fundingNotice}
         </p>
       ) : null}
 
-      {!balanceLoading && balance ? (
+      {balanceCoversStake ? (
+        <p className="rounded-sm border border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.1)] px-3 py-2 text-sm font-medium text-[var(--game-cyan)]">
+          Solde à jour : les USDC sont bien visibles sur la chaîne pour cette mise — tu peux entrer dans l’arène.
+        </p>
+      ) : null}
+
+      {balanceLoading && !confirmingUsdc ? (
+        <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider`}>
+          Lecture du solde…
+        </p>
+      ) : null}
+
+      {confirmingUsdc ? (
+        <p
+          className={`${gameMuted} rounded-sm border border-[var(--game-cyan)]/35 bg-[rgba(65,245,240,0.08)] px-3 py-2 font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider text-[var(--game-cyan)]`}
+        >
+          Synchronisation du solde USDC sur la chaîne — la transaction faucet est en cours de confirmation…
+        </p>
+      ) : null}
+
+      {balance && (!balanceLoading || confirmingUsdc) ? (
         <div className={`space-y-2 text-sm ${gameMuted}`}>
           {!balance.configured ? (
             <p className="rounded-sm border border-[var(--game-amber)]/40 bg-[rgba(255,200,74,0.1)] px-3 py-2 text-[var(--game-amber)]">
@@ -314,9 +503,40 @@ export function DuelAcceptPanel({ duelId }: Props) {
                 </span>
               </p>
               {!canAccept ? (
-                <p className="text-[var(--game-danger)]">
-                  Not enough balance for the stake. Use the faucet (getFreeDai) or send USDC to this wallet.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-[var(--game-danger)]">
+                    Solde insuffisant pour la mise. Tu peux redemander un envoi test depuis le serveur (même flux
+                    qu’à l’inscription). Si ça échoue encore, vérifie{" "}
+                    <code className="text-[var(--game-cyan)]">PRIVATE_KEY_GAS_DISPATCHER</code> (ETH sur la chaîne
+                    faucet) et le message orange ci‑dessus.
+                  </p>
+                  <div className="rounded-sm border border-[var(--game-cyan-dim)]/40 bg-[rgba(4,2,12,0.5)] p-3 space-y-2">
+                    <label className="block space-y-1">
+                      <span className={`${gameLabel} !text-[9px]`}>
+                        Mot de passe Dynamic (optionnel, si wallet chiffré)
+                      </span>
+                      <input
+                        type="password"
+                        value={claimPassword}
+                        onChange={(e) => setClaimPassword(e.target.value)}
+                        className={gameInput}
+                        autoComplete="current-password"
+                        placeholder="Laisse vide si compte récent"
+                      />
+                    </label>
+                    {claimError ? (
+                      <p className="text-xs text-[var(--game-danger)]">{claimError}</p>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={claimLoading}
+                      onClick={() => void onClaimFaucet()}
+                      className={`${gameBtnGhost} w-full sm:w-auto`}
+                    >
+                      {claimLoading ? "Envoi…" : "Recevoir USDC test (faucet)"}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <p className="text-[var(--game-cyan)]">Ready to enter — balance OK.</p>
               )}
@@ -331,14 +551,24 @@ export function DuelAcceptPanel({ duelId }: Props) {
         </p>
       ) : null}
 
-      <button
-        type="button"
-        disabled={joinLoading || !canAccept || !balance?.configured}
-        onClick={() => void onJoin()}
-        className={gameBtnPrimary}
-      >
-        {joinLoading ? "Saving…" : "Enter the arena"}
-      </button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          disabled={joinLoading || !canAccept || !balance?.configured}
+          onClick={() => void onJoin()}
+          className={gameBtnPrimary}
+        >
+          {joinLoading ? "Saving…" : "Enter the arena"}
+        </button>
+        <button
+          type="button"
+          disabled={balanceLoading || !balance?.configured}
+          onClick={() => void loadBalance()}
+          className={`${gameMuted} text-left text-xs underline decoration-[var(--game-cyan-dim)] underline-offset-2 sm:text-sm`}
+        >
+          Rafraîchir le solde
+        </button>
+      </div>
     </div>
   );
 }

@@ -9,16 +9,13 @@ import {
   updateUserWalletAddress,
 } from "@/lib/db/users";
 import { authenticatedEvmClient } from "@/lib/dynamic/evm-client";
-import {
-  fundUserGasFromDispatcher,
-  isGasDispatcherConfigured,
-} from "@/lib/evm/gas-dispatcher";
-import {
-  isGetFreeDaiConfigured,
-  sendGetFreeDaiTransaction,
-} from "@/lib/evm/get-free-dai";
+import { claimTestUsdcForWallet } from "@/lib/evm/claim-test-usdc";
+import { isGetFreeDaiConfigured } from "@/lib/evm/get-free-dai";
 
 const PSEUDO_RE = /^[a-zA-Z0-9_-]{2,32}$/;
+
+/** USDC test via contrat getFreeDai sur la chaîne FAUCET_* (voir .env.example). */
+export type SignupFaucetStatus = "sent" | "not_configured" | "failed";
 
 export type RegisterResult =
   | {
@@ -28,6 +25,9 @@ export type RegisterResult =
       walletAddress: string;
       gasFundTxHash?: string;
       faucetTxHash?: string;
+      faucetStatus: SignupFaucetStatus;
+      /** Présent si faucetStatus === "failed" (ex. pas de gas si PRIVATE_KEY_GAS_DISPATCHER absent). */
+      faucetError?: string;
     }
   | {
       ok: false;
@@ -111,7 +111,6 @@ export async function registerUserWithWallet(
     });
     const wallet = await client.createWalletAccount({
       thresholdSignatureScheme: ThresholdSignatureScheme.TWO_OF_TWO,
-      password,
       onError: (err: Error) => {
         console.error("[Dynamic] createWalletAccount:", err);
       },
@@ -123,18 +122,22 @@ export async function registerUserWithWallet(
 
     let gasFundTxHash: string | undefined;
     let faucetTxHash: string | undefined;
+    let faucetStatus: SignupFaucetStatus = "not_configured";
+    let faucetError: string | undefined;
+
     if (isGetFreeDaiConfigured()) {
       try {
-        if (isGasDispatcherConfigured()) {
-          gasFundTxHash = await fundUserGasFromDispatcher(walletAddress);
-        }
-        faucetTxHash = await sendGetFreeDaiTransaction({
+        const out = await claimTestUsdcForWallet({
           evmClient: client,
           walletAddress,
-          password,
         });
+        gasFundTxHash = out.gasFundTxHash;
+        faucetTxHash = out.faucetTxHash;
+        faucetStatus = "sent";
       } catch (e) {
         console.error("[faucet] gas fund or getFreeDai failed:", e);
+        faucetStatus = "failed";
+        faucetError = e instanceof Error ? e.message : String(e);
       }
     }
 
@@ -145,6 +148,8 @@ export async function registerUserWithWallet(
       walletAddress,
       gasFundTxHash,
       faucetTxHash,
+      faucetStatus,
+      ...(faucetError ? { faucetError } : {}),
     };
   } catch (e) {
     console.error(e);

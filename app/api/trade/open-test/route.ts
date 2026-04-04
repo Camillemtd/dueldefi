@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { createPublicClient, getAddress, http } from "viem";
 
 import { erc20Abi } from "@/constants/erc20";
@@ -39,18 +38,13 @@ export async function POST(request: NextRequest) {
 
   const b = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
 
-  const password = typeof b.password === "string" ? b.password : "";
+  const dynamicPassword =
+    typeof b.password === "string" && b.password.trim() ? b.password : undefined;
+
   const collateralAmountRaw =
     typeof b.collateralAmountRaw === "string" ? b.collateralAmountRaw.trim() : "";
   const tokenAddressIn =
     typeof b.tokenAddress === "string" ? b.tokenAddress.trim() : "";
-
-  if (!password) {
-    return NextResponse.json(
-      { error: "password is required (Dynamic wallet signing)." },
-      { status: 400 },
-    );
-  }
 
   if (!collateralAmountRaw || !tokenAddressIn) {
     return NextResponse.json(
@@ -108,11 +102,6 @@ export async function POST(request: NextRequest) {
   const user = await findUserById(session.userId);
   if (!user || user.pseudo !== session.pseudo) {
     return NextResponse.json({ error: "Session invalid." }, { status: 401 });
-  }
-
-  const passwordOk = await bcrypt.compare(password, user.password_hash);
-  if (!passwordOk) {
-    return NextResponse.json({ error: "Invalid password." }, { status: 401 });
   }
 
   if (!user.wallet_address) {
@@ -189,14 +178,14 @@ export async function POST(request: NextRequest) {
     const approveTxHash = await approveCollateralIfNeeded({
       evmClient,
       walletAddress,
-      password,
+      ...(dynamicPassword ? { password: dynamicPassword } : {}),
       minAmount: minAllowance,
     });
 
     const txHash = await sendGnsOpenTrade({
       evmClient,
       walletAddress,
-      password,
+      ...(dynamicPassword ? { password: dynamicPassword } : {}),
       trade,
     });
     return NextResponse.json({

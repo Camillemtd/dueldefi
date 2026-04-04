@@ -28,13 +28,14 @@ export function isGetFreeDaiConfigured(): boolean {
 }
 
 /**
- * Signs with Dynamic MPC (same password as wallet creation) and broadcasts via RPC.
+ * Signs with Dynamic MPC and broadcasts via RPC.
+ * Pass `password` only if the wallet was created with a Dynamic password.
  * Fund the user with {@link fundUserGasFromDispatcher} first if they start with 0 balance.
  */
 export async function sendGetFreeDaiTransaction(params: {
   evmClient: DynamicEvmWalletClient;
   walletAddress: `0x${string}`;
-  password: string;
+  password?: string;
 }): Promise<`0x${string}`> {
   const contract = process.env.USDC_FAUCET_CONTRACT_ADDRESS as `0x${string}`;
   const chain = getFaucetChain();
@@ -89,7 +90,7 @@ export async function sendGetFreeDaiTransaction(params: {
   const serializedSigned = await params.evmClient.signTransaction({
     senderAddress: params.walletAddress,
     transaction: tx,
-    password: params.password,
+    ...(params.password?.trim() ? { password: params.password } : {}),
   });
 
   return publicClient.sendRawTransaction({

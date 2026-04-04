@@ -58,11 +58,32 @@ export async function sendGnsOpenTrade(params: {
     ],
   });
 
-  return dynamicSignAndSendTransaction({
+  const t = params.trade;
+  console.log("[Gains openTrade]", {
+    contract: CONTRACT_GAINS_ARBITRUM_SEPOLIA,
+    wallet: params.walletAddress,
+    pairIndex: t.pairIndex,
+    leverage: t.leverage,
+    long: t.long,
+    collateralIndex: t.collateralIndex,
+    tradeType: t.tradeType,
+    collateralAmount: t.collateralAmount.toString(),
+    openPrice: t.openPrice.toString(),
+    positionSizeToken: t.positionSizeToken.toString(),
+    maxSlippageP,
+    referrer,
+    calldataBytes: data.length,
+  });
+
+  const hash = await dynamicSignAndSendTransaction({
     evmClient: params.evmClient,
     walletAddress: params.walletAddress,
     password: params.password,
     to: CONTRACT_GAINS_ARBITRUM_SEPOLIA,
     data,
   });
+
+  console.log("[Gains openTrade] txHash", hash);
+
+  return hash;
 }

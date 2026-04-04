@@ -1,16 +1,108 @@
 import type { DynamicEvmWalletClient } from "@dynamic-labs-wallet/node-evm";
 import {
+  BaseError,
+  ContractFunctionRevertedError,
   createPublicClient,
   getAddress,
   http,
+  parseTransaction,
   type Address,
   type Chain,
   type Hex,
+  type PublicClient,
   type TransactionSerializable,
 } from "viem";
 
 import { getFaucetChain } from "@/lib/evm/faucet-chain";
 import type { UniswapApiTx } from "@/lib/uniswap/trade-gateway";
+
+function formatSimulationRevert(error: unknown): string {
+  if (error instanceof BaseError) {
+    const reverted = error.walk((e) => e instanceof ContractFunctionRevertedError);
+    if (reverted instanceof ContractFunctionRevertedError) {
+      if (reverted.reason) return reverted.reason;
+      if (reverted.signature) return `revert data (raw signature): ${reverted.signature}`;
+    }
+    return error.details || error.shortMessage || error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
+/**
+ * Marge sur `estimateGas` : sur Arbitrum (et gros calldata type `openTrade`), le RPC peut
+ * sous-estimer → `intrinsic gas too low` à l’`eth_sendRawTransaction`.
+ */
+function calldataByteLength(data: Hex): number {
+  return Math.max(0, (data.length - 2) / 2);
+}
+
+function applyGasBuffer(estimatedGas: bigint, data: Hex): bigint {
+  if (estimatedGas <= BigInt(0)) {
+    throw new Error("estimateGas a renvoyé 0 — abandon avant signature.");
+  }
+  let out = (estimatedGas * BigInt(160)) / BigInt(100);
+  if (out < estimatedGas + BigInt(120_000)) {
+    out = estimatedGas + BigInt(120_000);
+  }
+  const byteLen = calldataByteLength(data);
+  if (byteLen >= 100) {
+    out += BigInt(200_000);
+  }
+  // Rollup (Arbitrum) : le nœud peut exiger une limite bien au-dessus de `estimateGas` (L1 data / intrinsic).
+  const rawMin = process.env.FAUCET_CONTRACT_CALL_GAS_MIN?.trim();
+  const minHeavy =
+    rawMin && /^\d+$/.test(rawMin) ? BigInt(rawMin) : BigInt(8_000_000);
+  if (byteLen >= 100 && out < minHeavy) {
+    out = minHeavy;
+  }
+  return out;
+}
+
+/** Toujours en EIP-1559 : le fallback `legacy` produisait des txs mal tolérées par le rollup (intrinsic gas). */
+async function getEip1559Fees(publicClient: PublicClient): Promise<{
+  maxFeePerGas: bigint;
+  maxPriorityFeePerGas: bigint;
+}> {
+  try {
+    const fees = await publicClient.estimateFeesPerGas();
+    return {
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+    };
+  } catch {
+    const block = await publicClient.getBlock({ blockTag: "latest" });
+    const base = block.baseFeePerGas ?? BigInt(100_000_000);
+    const maxPriorityFeePerGas = BigInt(150_000_000);
+    const maxFeePerGas = base * BigInt(2) + maxPriorityFeePerGas;
+    return { maxFeePerGas, maxPriorityFeePerGas };
+  }
+}
+
+/** `eth_call` avec le même `from` / `to` / `data` que la tx — message d’erreur plus lisible qu’`estimateGas` seul. */
+async function simulateCallBeforeGas(
+  publicClient: PublicClient,
+  params: {
+    account: Address;
+    to: Address;
+    data: Hex;
+    value?: bigint;
+  },
+): Promise<void> {
+  try {
+    await publicClient.call({
+      account: params.account,
+      to: params.to,
+      data: params.data,
+      value: params.value ?? BigInt(0),
+    });
+  } catch (e) {
+    console.log("simulateCallBeforeGas error", e);
+    throw new Error(`Simulation (eth_call) reverted: ${formatSimulationRevert(e)}`);
+  }
+}
 
 /** Build, sign with Dynamic MPC, broadcast raw tx (same chain as FAUCET_*). */
 export async function dynamicSignAndSendTransaction(params: {
@@ -28,44 +120,50 @@ export async function dynamicSignAndSendTransaction(params: {
     address: params.walletAddress,
   });
 
-  const gas = await publicClient.estimateGas({
+  await simulateCallBeforeGas(publicClient, {
     account: params.walletAddress,
     to: params.to,
     data: params.data,
   });
 
-  let tx: TransactionSerializable;
+  const estimated = await publicClient.estimateGas({
+    account: params.walletAddress,
+    to: params.to,
+    data: params.data,
+  });
+  const gas = applyGasBuffer(estimated, params.data);
+  const fees = await getEip1559Fees(publicClient);
 
-  try {
-    const fees = await publicClient.estimateFeesPerGas();
-    tx = {
-      type: "eip1559",
-      chainId: chain.id,
-      nonce,
-      to: params.to,
-      data: params.data,
-      gas,
-      maxFeePerGas: fees.maxFeePerGas,
-      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-    };
-  } catch {
-    const gasPrice = await publicClient.getGasPrice();
-    tx = {
-      type: "legacy",
-      chainId: chain.id,
-      nonce,
-      to: params.to,
-      data: params.data,
-      gas,
-      gasPrice,
-    };
-  }
+  const tx: TransactionSerializable = {
+    type: "eip1559",
+    chainId: chain.id,
+    nonce,
+    to: params.to,
+    data: params.data,
+    gas,
+    maxFeePerGas: fees.maxFeePerGas,
+    maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+  };
 
   const serializedSigned = await params.evmClient.signTransaction({
     senderAddress: params.walletAddress,
     transaction: tx,
     password: params.password,
   });
+
+  try {
+    const parsed = parseTransaction(serializedSigned);
+    const g =
+      "gas" in parsed && parsed.gas != null ? (parsed.gas as bigint).toString() : "absent";
+    console.log("[dynamicSignAndSend] après signature", {
+      type: parsed.type,
+      gasSigned: g,
+      gasAttendu: gas.toString(),
+      calldataBytes: calldataByteLength(params.data),
+    });
+  } catch {
+    /* ignore */
+  }
 
   return publicClient.sendRawTransaction({
     serializedTransaction: serializedSigned,
@@ -106,14 +204,24 @@ export async function dynamicSignAndSendUniswapTx(params: {
     address: params.walletAddress,
   });
 
-  const gas = params.tx.gasLimit
-    ? BigInt(params.tx.gasLimit)
-    : await publicClient.estimateGas({
-        account: params.walletAddress,
-        to,
-        data,
-        value,
-      });
+  let gas: bigint;
+  if (params.tx.gasLimit) {
+    gas = BigInt(params.tx.gasLimit);
+  } else {
+    await simulateCallBeforeGas(publicClient, {
+      account: params.walletAddress,
+      to,
+      data,
+      value,
+    });
+    const estimated = await publicClient.estimateGas({
+      account: params.walletAddress,
+      to,
+      data,
+      value,
+    });
+    gas = applyGasBuffer(estimated, data);
+  }
 
   let serializable: TransactionSerializable;
 
@@ -141,32 +249,18 @@ export async function dynamicSignAndSendUniswapTx(params: {
       gasPrice: BigInt(params.tx.gasPrice),
     };
   } else {
-    try {
-      const fees = await publicClient.estimateFeesPerGas();
-      serializable = {
-        type: "eip1559",
-        chainId: chain.id,
-        nonce,
-        to,
-        data,
-        value,
-        gas,
-        maxFeePerGas: fees.maxFeePerGas,
-        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-      };
-    } catch {
-      const gasPrice = await publicClient.getGasPrice();
-      serializable = {
-        type: "legacy",
-        chainId: chain.id,
-        nonce,
-        to,
-        data,
-        value,
-        gas,
-        gasPrice,
-      };
-    }
+    const fees = await getEip1559Fees(publicClient);
+    serializable = {
+      type: "eip1559",
+      chainId: chain.id,
+      nonce,
+      to,
+      data,
+      value,
+      gas,
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+    };
   }
 
   const serializedSigned = await params.evmClient.signTransaction({

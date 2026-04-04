@@ -8,6 +8,30 @@ const EXAMPLE_POSITION_500_USDC = BigInt("74826832004034672");
 const EXAMPLE_COLLATERAL = BigInt("500000000");
 const COLLATERAL_UINT120_MAX = (BigInt(1) << BigInt(120)) - BigInt(1);
 
+/** Précision prix Gains / gTrade (souvent 10 décimales pour les paires USD). */
+const OPEN_PRICE_SCALE = BigInt(10 ** 10);
+
+/**
+ * Convertit un prix « humain » (ex. 67500.12 depuis l’API paires) en uint64 on-chain.
+ * Si la conversion échoue, retourne l’ancien exemple (risque de revert si trop éloigné du marché).
+ */
+const MAX_U64 = BigInt("18446744073709551615");
+
+export function referencePriceToOpenPrice(referencePrice: number): bigint {
+  if (!Number.isFinite(referencePrice) || referencePrice <= 0) {
+    return EXAMPLE_OPEN_PRICE;
+  }
+  const scaled = referencePrice * Number(OPEN_PRICE_SCALE);
+  if (!Number.isFinite(scaled) || scaled <= 0 || scaled > Number.MAX_SAFE_INTEGER) {
+    return EXAMPLE_OPEN_PRICE;
+  }
+  const out = BigInt(Math.round(scaled));
+  if (out > MAX_U64) {
+    return EXAMPLE_OPEN_PRICE;
+  }
+  return out;
+}
+
 /**
  * Trade Gains pour un duel : collatéral = mise USDC du duel, reste depuis la config joueur.
  * `leverageX` 10 → champ on-chain `leverage` 10_000 (même convention que le test hardcodé).
@@ -40,6 +64,11 @@ export function buildGnsTradeFromDuelConfig(
   const positionSizeToken =
     (EXAMPLE_POSITION_500_USDC * collateralWei) / EXAMPLE_COLLATERAL;
 
+  const openPrice =
+    side.referencePrice != null
+      ? referencePriceToOpenPrice(side.referencePrice)
+      : EXAMPLE_OPEN_PRICE;
+
   return {
     user,
     index: 0,
@@ -50,7 +79,7 @@ export function buildGnsTradeFromDuelConfig(
     collateralIndex: 3,
     tradeType: side.tradeType ?? 0,
     collateralAmount: collateralWei,
-    openPrice: EXAMPLE_OPEN_PRICE,
+    openPrice,
     tp: BigInt(0),
     sl: BigInt(0),
     isCounterTrade: false,

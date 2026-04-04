@@ -33,8 +33,12 @@ export function parseDuelTradeConfig(value: unknown): DuelTradeSideConfig | null
     typeof o.tradeType === "number" && Number.isInteger(o.tradeType)
       ? o.tradeType
       : undefined;
+  const referencePrice =
+    typeof o.referencePrice === "number" && Number.isFinite(o.referencePrice) && o.referencePrice > 0
+      ? o.referencePrice
+      : undefined;
   if (!Number.isFinite(pairIndex) || !Number.isFinite(leverageX)) return null;
-  return { pairIndex, leverageX, long, tradeType };
+  return { pairIndex, leverageX, long, tradeType, referencePrice };
 }
 
 export async function markParticipantTradeReady(params: {

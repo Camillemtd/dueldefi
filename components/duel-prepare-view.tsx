@@ -72,6 +72,8 @@ export function DuelPrepareView() {
   const [pairIndex, setPairIndex] = useState(0);
   const [gainsChain, setGainsChain] = useState<GainsApiChain>("Testnet");
   const [selectedPairLabel, setSelectedPairLabel] = useState("");
+  /** Prix API au clic sur une paire — envoyé au contrat comme `openPrice` (évite slippage / revert). */
+  const [selectedReferencePrice, setSelectedReferencePrice] = useState<number | null>(null);
   const [leverageX, setLeverageX] = useState(10);
   const [long, setLong] = useState(true);
 
@@ -118,6 +120,12 @@ export function DuelPrepareView() {
         setLeverageX(data.myTradeConfig.leverageX);
         setLong(data.myTradeConfig.long);
         setSelectedPairLabel(`Pair #${data.myTradeConfig.pairIndex}`);
+        setSelectedReferencePrice(
+          typeof data.myTradeConfig.referencePrice === "number" &&
+            Number.isFinite(data.myTradeConfig.referencePrice)
+            ? data.myTradeConfig.referencePrice
+            : null,
+        );
       }
 
       // Same target instant for both clients: server `readyBothAt` + countdown, not next poll/React tick.
@@ -231,6 +239,9 @@ export function DuelPrepareView() {
           leverageX,
           long,
           tradeType: 0,
+          ...(selectedReferencePrice != null && Number.isFinite(selectedReferencePrice)
+            ? { referencePrice: selectedReferencePrice }
+            : {}),
         } satisfies DuelTradeSideConfig),
       });
       const data = (await res.json()) as { error?: string };
@@ -455,17 +466,25 @@ export function DuelPrepareView() {
             </label>
             <div className="space-y-2">
               <span className={gameLabel}>Trading pair</span>
+              <p className={`${gameMuted} text-xs`}>
+                Tap a row to set <span className="text-[var(--game-cyan)]">pair + live price</span> for
+                on-chain open (avoids stale demo price reverts).
+              </p>
               <GainsPairPicker
                 chain={gainsChain}
                 onChainChange={(c) => {
                   setGainsChain(c);
                   setPairIndex(0);
                   setSelectedPairLabel("");
+                  setSelectedReferencePrice(null);
                 }}
                 selectedPairIndex={pairIndex}
                 onSelectPair={(p: GainsTradingPair) => {
                   setPairIndex(p.pairIndex);
                   setSelectedPairLabel(p.name);
+                  setSelectedReferencePrice(
+                    Number.isFinite(p.price) && p.price > 0 ? p.price : null,
+                  );
                 }}
               />
             </div>
@@ -508,7 +527,14 @@ export function DuelPrepareView() {
             </p>
             <p className={`${gameMuted} mt-1`}>
               {selectedPairLabel || `Pair #${pairIndex}`} · {gainsChain} · {leverageX}× ·{" "}
-              {long ? "Long" : "Short"} · password kept for auto-sign
+              {long ? "Long" : "Short"}
+              {selectedReferencePrice != null ? (
+                <>
+                  {" "}
+                  · ref price {selectedReferencePrice}
+                </>
+              ) : null}{" "}
+              · password kept for auto-sign
             </p>
           </div>
         )}

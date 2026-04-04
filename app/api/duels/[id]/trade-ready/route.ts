@@ -21,13 +21,19 @@ function parseBodyConfig(body: unknown): DuelTradeSideConfig | null {
     typeof o.tradeType === "number" && Number.isInteger(o.tradeType)
       ? o.tradeType
       : undefined;
+  const referencePrice =
+    typeof o.referencePrice === "number" &&
+    Number.isFinite(o.referencePrice) &&
+    o.referencePrice > 0
+      ? o.referencePrice
+      : undefined;
   if (!Number.isFinite(pairIndex) || pairIndex < 0 || pairIndex > 65535) {
     return null;
   }
   if (!Number.isFinite(leverageX) || leverageX < 1 || leverageX > 500) {
     return null;
   }
-  return { pairIndex, leverageX, long, tradeType };
+  return { pairIndex, leverageX, long, tradeType, referencePrice };
 }
 
 export async function POST(

@@ -15,6 +15,7 @@ import {
 } from "@/components/game-ui";
 import { LoginForm } from "@/components/login-form";
 import { SignupForm } from "@/components/signup-form";
+import { UniswapMainnetDemo } from "@/components/uniswap-mainnet-demo";
 import { WalletProfile } from "@/components/wallet-profile";
 
 type MeUser = {
@@ -111,7 +112,12 @@ export function HomeAuth() {
           </span>
         </Link>
 
-        {user.walletAddress ? <WalletProfile walletAddress={user.walletAddress} /> : null}
+        {user.walletAddress ? (
+          <>
+            <UniswapMainnetDemo />
+            <WalletProfile walletAddress={user.walletAddress} />
+          </>
+        ) : null}
       </div>
     );
   }

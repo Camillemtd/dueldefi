@@ -22,4 +22,8 @@ export type MobulaPortfolioPayload = {
   /** Solde lu sur le RPC faucet (GNS_COLLATERAL / USDC getFreeDai) car Mobula est vide ou en erreur. */
   usedOnchainFallback?: boolean;
   mobulaSkippedReason?: "mobula_error" | "mobula_empty";
+  /** Chaîne Gains / faucet (FAUCET_CHAIN_ID) pour filtrer les swaps Uniswap côté UI. */
+  faucetChainId?: number;
+  /** Adresse du jeton collatéral Gains (GNS_COLLATERAL_TOKEN_ADDRESS), pour masquer le swap inutile. */
+  gainsCollateralTokenAddress?: string;
 };

@@ -26,7 +26,7 @@ function tradeToTuple(t: GnsTrade) {
     sl: t.sl,
     isCounterTrade: t.isCounterTrade,
     positionSizeToken: t.positionSizeToken,
-    __placeholder: Number(t.__placeholder),
+    __placeholder: t.__placeholder,
   };
 }
 

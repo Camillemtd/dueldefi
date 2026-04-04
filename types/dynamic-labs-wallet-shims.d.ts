@@ -31,5 +31,10 @@ declare module "@dynamic-labs-wallet/node-evm" {
       transaction: import("viem").TransactionSerializable;
       password?: string;
     }): Promise<`0x${string}`>;
+    signTypedData(options: {
+      accountAddress: string;
+      typedData: import("viem").SignTypedDataParameters;
+      password?: string;
+    }): Promise<`0x${string}`>;
   }
 }

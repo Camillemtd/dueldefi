@@ -3,6 +3,7 @@ import { getAddress, type Address } from "viem";
 
 import { getSessionFromRequest } from "@/lib/auth/session";
 import { findUserById } from "@/lib/db/users";
+import { getFaucetChain, isFaucetChainConfigured } from "@/lib/evm/faucet-chain";
 import { readFaucetChainCollateralBalance } from "@/lib/evm/read-faucet-collateral-balance";
 import { fetchMobulaWalletPortfolio } from "@/lib/mobula/fetch-wallet-portfolio";
 import type { MobulaPortfolioPayload } from "@/types/mobula-portfolio";
@@ -34,6 +35,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid wallet address in database." }, { status: 500 });
   }
 
+  let gainsCollateralTokenAddress: string | undefined;
+  const collateralEnv = process.env.GNS_COLLATERAL_TOKEN_ADDRESS?.trim();
+  if (collateralEnv?.startsWith("0x")) {
+    try {
+      gainsCollateralTokenAddress = getAddress(collateralEnv as `0x${string}`);
+    } catch {
+      gainsCollateralTokenAddress = undefined;
+    }
+  }
+
+  const faucetMeta: Pick<
+    MobulaPortfolioPayload,
+    "faucetChainId" | "gainsCollateralTokenAddress"
+  > = {
+    ...(isFaucetChainConfigured() ? { faucetChainId: getFaucetChain().id } : {}),
+    ...(gainsCollateralTokenAddress
+      ? { gainsCollateralTokenAddress }
+      : {}),
+  };
+
   async function onchainFallback(reason: "mobula_error" | "mobula_empty") {
     const position = await readFaucetChainCollateralBalance(wallet);
     if (!position) return null;
@@ -43,6 +64,7 @@ export async function GET(request: NextRequest) {
       positions: [position],
       usedOnchainFallback: true,
       mobulaSkippedReason: reason,
+      ...faucetMeta,
     };
     return NextResponse.json(body);
   }
@@ -53,7 +75,7 @@ export async function GET(request: NextRequest) {
       const fb = await onchainFallback("mobula_empty");
       if (fb) return fb;
     }
-    return NextResponse.json({ ...data, usedOnchainFallback: false });
+    return NextResponse.json({ ...data, usedOnchainFallback: false, ...faucetMeta });
   } catch (e) {
     const fb = await onchainFallback("mobula_error");
     if (fb) return fb;

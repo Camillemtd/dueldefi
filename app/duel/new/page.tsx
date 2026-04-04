@@ -29,6 +29,7 @@ export default function NewDuelPage() {
   const [error, setError] = useState<string | null>(null);
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [joinPath, setJoinPath] = useState<string | null>(null);
+  const [clipboardNotice, setClipboardNotice] = useState<string | null>(null);
 
   const refreshAuth = useCallback(async () => {
     const r = await fetch("/api/auth/me", { credentials: "include" });
@@ -40,6 +41,12 @@ export default function NewDuelPage() {
   useEffect(() => {
     void refreshAuth();
   }, [refreshAuth]);
+
+  useEffect(() => {
+    if (!clipboardNotice) return;
+    const t = window.setTimeout(() => setClipboardNotice(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [clipboardNotice]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -83,8 +90,9 @@ export default function NewDuelPage() {
     if (!joinUrl) return;
     try {
       await navigator.clipboard.writeText(joinUrl);
+      setClipboardNotice("Duel link copied to clipboard.");
     } catch {
-      /* ignore */
+      setClipboardNotice("Could not copy to clipboard.");
     }
   }
 
@@ -201,6 +209,18 @@ export default function NewDuelPage() {
           ← Back to hub
         </Link>
       </main>
+
+      {clipboardNotice ? (
+        <div
+          className="pointer-events-none fixed bottom-6 left-1/2 z-[70] max-w-[min(90vw,20rem)] -translate-x-1/2 rounded-sm border border-[var(--game-cyan)]/50 bg-[rgba(4,2,12,0.92)] px-4 py-3 text-center shadow-[0_0_32px_rgba(65,245,240,0.2)] backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="font-[family-name:var(--font-share-tech)] text-sm text-[var(--game-cyan)]">
+            {clipboardNotice}
+          </p>
+        </div>
+      ) : null}
     </>
   );
 }

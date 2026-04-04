@@ -14,6 +14,7 @@ import {
 import { GainsLivePositionsPanel } from "@/components/gains-live-positions-panel"
 import { GainsPairPicker } from "@/components/gains-pair-picker"
 import { useGainsRealtime } from "@/components/gains-realtime-context"
+import { TokenPicker, extractNumericChainId, type SelectedToken } from "@/components/token-picker"
 import {
   GameHudBar,
   GameLogo,
@@ -227,6 +228,9 @@ export function DuelPrepareView() {
 
   const [readyLoading, setReadyLoading] = useState(false)
   const [readyError, setReadyError] = useState<string | null>(null)
+  const [selectedToken, setSelectedToken] = useState<SelectedToken | null>(null)
+  const [swapBusy, setSwapBusy] = useState(false)
+  const [swapResult, setSwapResult] = useState<string | null>(null)
 
   const [execLoading, setExecLoading] = useState(false)
   const [execError, setExecError] = useState<string | null>(null)
@@ -458,7 +462,41 @@ export function DuelPrepareView() {
     if (!duelId) return
     setReadyError(null)
     setReadyLoading(true)
+    setSwapResult(null)
+
     try {
+      // If a non-USDC token is selected, swap to USDC first
+      if (selectedToken && !selectedToken.isCollateral) {
+        setSwapBusy(true)
+        try {
+          const swapRes = await fetch("/api/trade/swap-to-collateral", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              tokenIn: selectedToken.tokenAddress,
+              stakeUsdc: duel?.stakeUsdc ?? "0",
+              chainId: Number(extractNumericChainId(selectedToken.chainId) ?? "42161"),
+            }),
+          })
+          const swapData = (await swapRes.json()) as {
+            error?: string
+            swapTxHash?: string
+            noSwapNeeded?: boolean
+          }
+          if (!swapRes.ok) {
+            setReadyError(`Swap failed: ${swapData.error ?? "Unknown error."}`)
+            return
+          }
+          if (swapData.swapTxHash) {
+            setSwapResult(`Swapped via tx ${swapData.swapTxHash}`)
+          }
+        } finally {
+          setSwapBusy(false)
+        }
+      }
+
+      // Now mark ready with trade config
       const res = await fetch(`/api/duels/${duelId}/trade-ready`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -879,6 +917,15 @@ export function DuelPrepareView() {
           />
         )}
 
+        {!duel.myReady && duel.playMode === "duel" ? (
+          <TokenPicker
+            stakeUsdc={duel.stakeUsdc}
+            chainId={gainsChain === "Arbitrum" ? "42161" : "42161"}
+            onSelect={setSelectedToken}
+            selected={selectedToken}
+          />
+        ) : null}
+
         {!duel.myReady ? (
           <div className={`${gamePanel} space-y-4 p-6`}>
             <h2 className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)]">
@@ -953,6 +1000,9 @@ export function DuelPrepareView() {
               />
               <span>Long (uncheck for short)</span>
             </label>
+            {swapResult ? (
+              <p className="text-xs text-[var(--game-cyan)]">{swapResult}</p>
+            ) : null}
             {readyError ? (
               <p className="text-sm text-[var(--game-danger)]">{readyError}</p>
             ) : null}
@@ -962,7 +1012,13 @@ export function DuelPrepareView() {
               onClick={() => void onMarkReady()}
               className={gameBtnPrimary}
             >
-              {readyLoading ? "Sending…" : "Mark ready — GO"}
+              {swapBusy
+                ? "Swapping…"
+                : readyLoading
+                  ? "Sending…"
+                  : selectedToken && !selectedToken.isCollateral
+                    ? `Swap ${selectedToken.symbol} → USDC & GO`
+                    : "Mark ready — GO"}
             </button>
           </div>
         ) : (

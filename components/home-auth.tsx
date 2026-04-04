@@ -16,6 +16,7 @@ import {
 import { LoginForm } from "@/components/login-form"
 import { SignupForm } from "@/components/signup-form"
 import { HubPlayModeMenu } from "@/components/hub-play-mode-menu"
+import { TokenSwapTest } from "@/components/token-swap-test"
 import { UniswapMainnetDemo } from "@/components/uniswap-mainnet-demo"
 import { WalletProfile } from "@/components/wallet-profile"
 
@@ -126,7 +127,7 @@ export function HomeAuth() {
 
         {user.walletAddress ? (
           <>
-            <UniswapMainnetDemo />
+            <TokenSwapTest />
             <WalletProfile walletAddress={user.walletAddress} />
           </>
         ) : null}

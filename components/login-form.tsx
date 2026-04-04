@@ -2,6 +2,8 @@
 
 import { type FormEvent, useState } from "react";
 
+import { gameBtnPrimary, gameInput, gameLabel, gameMuted, gamePanel, gamePanelTopAccent, gameTitle } from "@/components/game-ui";
+
 type Props = {
   onSuccess?: () => void | Promise<void>;
 };
@@ -41,19 +43,20 @@ export function LoginForm({ onSuccess }: Props) {
   return (
     <form
       onSubmit={onSubmit}
-      className="mx-auto w-full max-w-md space-y-6 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-8"
+      className={`${gamePanel} ${gamePanelTopAccent} mx-auto w-full max-w-md space-y-6 p-8`}
     >
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Log in</h1>
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
-          Use the same username and password as when you signed up.
+      <div className="space-y-2">
+        <p className={gameLabel}>Accès joueur</p>
+        <h1 className={`${gameTitle} text-xl sm:text-2xl`}>Connexion</h1>
+        <p className={gameMuted}>
+          Même pseudo et mot de passe qu’à l’inscription.
         </p>
       </div>
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="login-username" className="text-sm font-medium">
-            Username
+          <label htmlFor="login-username" className={gameLabel}>
+            Pseudo
           </label>
           <input
             id="login-username"
@@ -63,13 +66,13 @@ export function LoginForm({ onSuccess }: Props) {
             required
             value={username}
             onChange={(ev) => setUsername(ev.target.value)}
-            className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2.5 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-[color-mix(in_oklab,var(--foreground)35%,transparent)]"
-            placeholder="your_username"
+            className={gameInput}
+            placeholder="ton_pseudo"
           />
         </div>
         <div className="space-y-2">
-          <label htmlFor="login-password" className="text-sm font-medium">
-            Password
+          <label htmlFor="login-password" className={gameLabel}>
+            Mot de passe
           </label>
           <input
             id="login-password"
@@ -79,23 +82,22 @@ export function LoginForm({ onSuccess }: Props) {
             required
             value={password}
             onChange={(ev) => setPassword(ev.target.value)}
-            className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2.5 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-[color-mix(in_oklab,var(--foreground)35%,transparent)]"
+            className={gameInput}
           />
         </div>
       </div>
 
       {error ? (
-        <p className="rounded-lg bg-red-500/12 px-3 py-2 text-sm text-red-600 dark:text-red-400" role="alert">
+        <p
+          className="rounded-sm border border-[var(--game-danger)]/50 bg-[rgba(255,68,102,0.12)] px-3 py-2 text-sm text-[var(--game-danger)]"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-xl bg-foreground py-2.5 text-sm font-medium text-background transition enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {loading ? "Signing in…" : "Log in"}
+      <button type="submit" disabled={loading} className={gameBtnPrimary}>
+        {loading ? "Connexion…" : "Entrer dans l’arène"}
       </button>
     </form>
   );

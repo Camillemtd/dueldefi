@@ -1,26 +1,105 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --game-bg: #06030d;
+  --game-bg-elevated: rgba(14, 8, 28, 0.88);
+  --game-cyan: #41f5f0;
+  --game-cyan-dim: rgba(65, 245, 240, 0.32);
+  --game-magenta: #ff3d9a;
+  --game-magenta-dim: rgba(255, 61, 154, 0.4);
+  --game-amber: #ffc84a;
+  --game-danger: #ff4466;
+  --game-text: #eef8ff;
+  --game-text-muted: rgba(238, 248, 255, 0.55);
+  --background: var(--game-bg);
+  --foreground: var(--game-text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-chakra-petch), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-share-tech), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
+  background: var(--game-bg);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Arène : dégradé + grille perspective légère */
+.game-arena {
+  position: relative;
+  min-height: 100%;
+  background-image:
+    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(110, 40, 180, 0.42), transparent 52%),
+    linear-gradient(185deg, #040208 0%, #0c0618 42%, #030106 100%);
+}
+
+.game-arena::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(65, 245, 240, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(65, 245, 240, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, black 15%, transparent 75%);
+}
+
+/* Scanlines CRT très légères */
+.game-scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.55) 2px,
+    rgba(0, 0, 0, 0.55) 4px
+  );
+}
+
+.game-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Compte à rebours plein écran type boss fight */
+.game-countdown-overlay {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 61, 154, 0.18), transparent 55%),
+    radial-gradient(circle at 50% 55%, rgba(65, 245, 240, 0.12), transparent 50%),
+    rgba(2, 0, 8, 0.92);
+}
+
+.game-countdown-num {
+  font-family: var(--font-orbitron), sans-serif;
+  font-size: clamp(5rem, 22vw, 12rem);
+  font-weight: 900;
+  line-height: 1;
+  color: var(--game-amber);
+  text-shadow:
+    0 0 20px rgba(255, 200, 74, 0.9),
+    0 0 60px rgba(255, 61, 154, 0.45);
+  animation: game-pulse-num 0.85s ease-in-out infinite;
+}
+
+@keyframes game-pulse-num {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.04);
+    filter: brightness(1.08);
+  }
 }

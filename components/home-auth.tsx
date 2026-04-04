@@ -3,6 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  gameBtnGhost,
+  gameBtnPrimary,
+  gameLabel,
+  gameMuted,
+  gamePanel,
+  gamePanelTopAccent,
+  gameTabActive,
+  gameTabRow,
+  gameTitle,
+} from "@/components/game-ui";
 import { LoginForm } from "@/components/login-form";
 import { OpenTestTradeForm } from "@/components/open-test-trade";
 import { WalletPortfolioTradePicker } from "@/components/wallet-portfolio-trade-picker";
@@ -56,8 +67,8 @@ export function HomeAuth() {
 
   if (loading) {
     return (
-      <p className="text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-        Loading…
+      <p className={`${gameMuted} text-center font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-widest`}>
+        Chargement…
       </p>
     );
   }
@@ -65,36 +76,27 @@ export function HomeAuth() {
   if (user) {
     return (
       <div className="flex w-full max-w-md flex-col gap-8">
-        <div className="space-y-3 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-8">
+        <div className={`${gamePanel} ${gamePanelTopAccent} space-y-4 p-8`}>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-                Signed in
-              </p>
-              <p className="text-lg font-semibold tracking-tight">{user.username}</p>
+              <p className={gameLabel}>Joueur connecté</p>
+              <p className={`${gameTitle} mt-1 text-xl sm:text-2xl`}>{user.username}</p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-start">
-              <Link
-                href="/duel/new"
-                className="rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background hover:opacity-90"
-              >
-                Duel
+              <Link href="/duel/new" className={`${gameBtnPrimary} !w-auto px-4 py-2 text-xs`}>
+                Nouveau duel
               </Link>
-              <button
-                type="button"
-                onClick={() => void logout()}
-                className="rounded-lg border border-[color-mix(in_oklab,var(--foreground)18%,transparent)] px-3 py-1.5 text-sm font-medium hover:bg-[color-mix(in_oklab,var(--foreground)8%,transparent)]"
-              >
-                Log out
+              <button type="button" onClick={() => void logout()} className={`${gameBtnGhost} !w-auto`}>
+                Déconnexion
               </button>
             </div>
           </div>
           {user.walletAddress ? (
-            <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-                Wallet
+            <div className="space-y-1 border-t border-[var(--game-cyan-dim)] pt-4">
+              <p className={gameLabel}>Wallet</p>
+              <p className="break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-cyan)]">
+                {user.walletAddress}
               </p>
-              <p className="break-all font-mono text-sm">{user.walletAddress}</p>
             </div>
           ) : null}
         </div>
@@ -114,28 +116,20 @@ export function HomeAuth() {
 
   return (
     <div className="flex w-full max-w-md flex-col gap-6">
-      <div className="flex rounded-xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] p-1">
+      <div className={gameTabRow}>
         <button
           type="button"
           onClick={() => setMode("signup")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-            mode === "signup"
-              ? "bg-[color-mix(in_oklab,var(--foreground)10%,transparent)] text-foreground"
-              : "text-[color-mix(in_oklab,var(--foreground)55%,transparent)]"
-          }`}
+          className={`flex-1 rounded-sm py-2.5 text-xs font-bold uppercase tracking-wider transition ${gameTabActive(mode === "signup")}`}
         >
-          Sign up
+          Inscription
         </button>
         <button
           type="button"
           onClick={() => setMode("login")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-            mode === "login"
-              ? "bg-[color-mix(in_oklab,var(--foreground)10%,transparent)] text-foreground"
-              : "text-[color-mix(in_oklab,var(--foreground)55%,transparent)]"
-          }`}
+          className={`flex-1 rounded-sm py-2.5 text-xs font-bold uppercase tracking-wider transition ${gameTabActive(mode === "login")}`}
         >
-          Log in
+          Connexion
         </button>
       </div>
       {mode === "signup" ? (

@@ -2,6 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { DuelAcceptPanel } from "@/components/duel-accept-panel";
+import {
+  GameHudBar,
+  GameLogo,
+  GameStatPill,
+  GameVsBanner,
+  gameLink,
+  gameMuted,
+  gameSubtitle,
+  gameTitle,
+} from "@/components/game-ui";
 import { findDuelWithPseudos } from "@/lib/db/duels";
 
 type Props = {
@@ -32,67 +42,60 @@ export default async function DuelLobbyPage({ params }: Props) {
   if (!duel) notFound();
 
   const stakeLabel = formatUsdcDisplay(duel.stake_usdc);
+  const opp = duel.opponent_pseudo ?? "En attente…";
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-col gap-8 px-4 py-16">
-      <div className="space-y-1">
-        <p className="text-xs font-medium uppercase tracking-wider text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-          Salon de duel
+    <>
+      <GameHudBar>
+        <Link href="/" className="shrink-0">
+          <GameLogo className="!text-sm sm:!text-base" />
+        </Link>
+        <p className="hidden font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.25em] text-[var(--game-text-muted)] sm:block">
+          Salon de match
         </p>
-        <h1 className="text-xl font-semibold tracking-tight">Partie en attente</h1>
-        <p className="font-mono text-xs text-[color-mix(in_oklab,var(--foreground)50%,transparent)]">
-          {duel.id}
-        </p>
-      </div>
+      </GameHudBar>
 
-      <div className="space-y-4 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">Créateur</p>
-            <p className="font-semibold">{duel.creator_pseudo}</p>
-          </div>
-          <div>
-            <p className="text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">Adversaire</p>
-            <p className="font-semibold">
-              {duel.opponent_pseudo ?? "— (pas encore rejoint)"}
-            </p>
-          </div>
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-8 px-4 py-10 sm:py-14">
+        <div className="space-y-3">
+          <p className={gameSubtitle}>Match ID</p>
+          <h1 className={`${gameTitle} !text-2xl sm:!text-3xl`}>Arène ouverte</h1>
+          <p className={`${gameMuted} font-[family-name:var(--font-share-tech)] text-xs`}>{duel.id}</p>
         </div>
-        <div className="border-t border-[color-mix(in_oklab,var(--foreground)10%,transparent)] pt-4 space-y-2 text-sm">
-          <p>
-            <span className="text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-              Mise (chacun) :{" "}
-            </span>
-            <span className="font-mono font-medium">{stakeLabel} USDC</span>
-          </p>
-          <p>
-            <span className="text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-              Temps pour trader :{" "}
-            </span>
-            <span className="font-medium">{formatDuration(duel.duration_seconds)}</span>
+
+        <GameVsBanner
+          left={duel.creator_pseudo}
+          right={opp}
+          leftTag="Créateur"
+          rightTag="Adversaire"
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <GameStatPill label="Mise / joueur" value={`${stakeLabel} USDC`} />
+          <GameStatPill label="Temps de trade" value={formatDuration(duel.duration_seconds)} />
+        </div>
+
+        <div className="rounded-sm border-2 border-[var(--game-cyan-dim)] bg-[var(--game-bg-elevated)] p-5 backdrop-blur-md">
+          <p className={`${gameMuted} text-xs leading-relaxed`}>
+            Les deux joueurs doivent rejoindre le salon, puis passer à la phase{" "}
+            <span className="font-semibold text-[var(--game-cyan)]">préparation trade</span> pour lancer
+            les positions en synchro.
           </p>
         </div>
-      </div>
 
-      {duel.opponent_pseudo ? (
-        <p className="text-center text-sm">
-          <Link
-            href={`/duel/${duel.id}/prepare`}
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            Page préparation trade (les deux joueurs)
-          </Link>
-        </p>
-      ) : null}
+        {duel.opponent_pseudo ? (
+          <p className="text-center">
+            <Link href={`/duel/${duel.id}/prepare`} className={`${gameLink} text-base font-bold uppercase tracking-wider`}>
+              → Préparation du combat (trade)
+            </Link>
+          </p>
+        ) : null}
 
-      <DuelAcceptPanel duelId={duel.id} />
+        <DuelAcceptPanel duelId={duel.id} />
 
-      <Link
-        href="/"
-        className="text-center text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)] underline-offset-4 hover:underline"
-      >
-        Retour à l’accueil
-      </Link>
-    </main>
+        <Link href="/" className={`${gameLink} text-center`}>
+          ← Retour au hub
+        </Link>
+      </main>
+    </>
   );
 }

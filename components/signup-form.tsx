@@ -2,6 +2,8 @@
 
 import { type FormEvent, useState } from "react";
 
+import { gameBtnPrimary, gameInput, gameLabel, gameMuted, gamePanel, gamePanelTopAccent, gameTitle } from "@/components/game-ui";
+
 type Props = {
   onSuccess?: () => void | Promise<void>;
 };
@@ -41,19 +43,20 @@ export function SignupForm({ onSuccess }: Props) {
   return (
     <form
       onSubmit={onSubmit}
-      className="mx-auto w-full max-w-md space-y-6 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-8"
+      className={`${gamePanel} ${gamePanelTopAccent} mx-auto w-full max-w-md space-y-6 p-8`}
     >
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Create an account</h1>
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
-          Pick a username and password. A Dynamic embedded wallet is created on the server (Node SDK); the same password secures your wallet for signing trades.
+      <div className="space-y-2">
+        <p className={gameLabel}>Nouveau combattant</p>
+        <h1 className={`${gameTitle} text-xl sm:text-2xl`}>Créer un compte</h1>
+        <p className={gameMuted}>
+          Choisis un pseudo et un mot de passe. Un wallet Dynamic est créé côté serveur ; le même mot de passe sert à signer tes trades.
         </p>
       </div>
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="username" className="text-sm font-medium">
-            Username
+          <label htmlFor="username" className={gameLabel}>
+            Pseudo
           </label>
           <input
             id="username"
@@ -65,13 +68,13 @@ export function SignupForm({ onSuccess }: Props) {
             maxLength={32}
             value={username}
             onChange={(ev) => setUsername(ev.target.value)}
-            className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2.5 text-sm outline-none ring-offset-background transition focus:ring-2 focus:ring-[color-mix(in_oklab,var(--foreground)35%,transparent)]"
-            placeholder="your_username"
+            className={gameInput}
+            placeholder="ton_pseudo"
           />
         </div>
         <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium">
-            Password
+          <label htmlFor="password" className={gameLabel}>
+            Mot de passe
           </label>
           <input
             id="password"
@@ -82,24 +85,23 @@ export function SignupForm({ onSuccess }: Props) {
             minLength={8}
             value={password}
             onChange={(ev) => setPassword(ev.target.value)}
-            className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2.5 text-sm outline-none ring-offset-background transition focus:ring-2 focus:ring-[color-mix(in_oklab,var(--foreground)35%,transparent)]"
-            placeholder="At least 8 characters"
+            className={gameInput}
+            placeholder="8 caractères minimum"
           />
         </div>
       </div>
 
       {error ? (
-        <p className="rounded-lg bg-red-500/12 px-3 py-2 text-sm text-red-600 dark:text-red-400" role="alert">
+        <p
+          className="rounded-sm border border-[var(--game-danger)]/50 bg-[rgba(255,68,102,0.12)] px-3 py-2 text-sm text-[var(--game-danger)]"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-xl bg-foreground py-2.5 text-sm font-medium text-background transition enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {loading ? "Creating…" : "Create account & wallet"}
+      <button type="submit" disabled={loading} className={gameBtnPrimary}>
+        {loading ? "Création…" : "Créer compte + wallet"}
       </button>
     </form>
   );

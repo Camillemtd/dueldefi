@@ -4,6 +4,20 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import {
+  GameHudBar,
+  GameLogo,
+  GameVsBanner,
+  gameBtnPrimary,
+  gameInput,
+  gameLabel,
+  gameLink,
+  gameMuted,
+  gamePanel,
+  gamePanelTopAccent,
+  gameSubtitle,
+  gameTitle,
+} from "@/components/game-ui";
 import type { DuelTradeSideConfig } from "@/types/duel-trade";
 
 const POLL_MS = 1000;
@@ -248,216 +262,260 @@ export function DuelPrepareView() {
   }
 
   if (!duelId) {
-    return <p className="p-8 text-sm">Identifiant manquant.</p>;
+    return (
+      <>
+        <GameHudBar>
+          <GameLogo className="!text-sm" />
+        </GameHudBar>
+        <p className="p-8 text-sm text-[var(--game-danger)]">Identifiant manquant.</p>
+      </>
+    );
   }
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-16">
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">Chargement…</p>
-      </main>
+      <>
+        <GameHudBar>
+          <Link href="/" className="shrink-0">
+            <GameLogo className="!text-sm sm:!text-base" />
+          </Link>
+        </GameHudBar>
+        <main className="mx-auto max-w-lg flex-1 px-4 py-16">
+          <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-widest`}>
+            Chargement…
+          </p>
+        </main>
+      </>
     );
   }
 
   if (loadError || !duel) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-16 space-y-4">
-        <p className="text-sm text-red-600 dark:text-red-400">{loadError ?? "Introuvable."}</p>
-        <Link href="/" className="text-sm underline">
-          Accueil
-        </Link>
-      </main>
+      <>
+        <GameHudBar>
+          <Link href="/" className="shrink-0">
+            <GameLogo className="!text-sm sm:!text-base" />
+          </Link>
+        </GameHudBar>
+        <main className="mx-auto max-w-lg flex-1 space-y-4 px-4 py-16">
+          <p className="text-sm text-[var(--game-danger)]">{loadError ?? "Introuvable."}</p>
+          <Link href="/" className={gameLink}>
+            Retour au hub
+          </Link>
+        </main>
+      </>
     );
   }
 
   if (!duel.duelFull) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-16 space-y-4">
-        <p className="text-sm">Le duel n’a pas encore deux joueurs.</p>
-        <Link href={`/duel/${duelId}`} className="text-sm underline">
-          Retour au salon
-        </Link>
-      </main>
+      <>
+        <GameHudBar>
+          <Link href="/" className="shrink-0">
+            <GameLogo className="!text-sm sm:!text-base" />
+          </Link>
+        </GameHudBar>
+        <main className="mx-auto max-w-lg flex-1 space-y-4 px-4 py-16">
+          <p className={gameMuted}>Le duel n’a pas encore deux joueurs.</p>
+          <Link href={`/duel/${duelId}`} className={gameLink}>
+            Retour au salon
+          </Link>
+        </main>
+      </>
     );
   }
 
   if (!participant) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-16 space-y-4">
-        <p className="text-sm">Tu ne participes pas à ce duel.</p>
-        <Link href="/" className="text-sm underline">
-          Accueil
-        </Link>
-      </main>
+      <>
+        <GameHudBar>
+          <Link href="/" className="shrink-0">
+            <GameLogo className="!text-sm sm:!text-base" />
+          </Link>
+        </GameHudBar>
+        <main className="mx-auto max-w-lg flex-1 space-y-4 px-4 py-16">
+          <p className={gameMuted}>Tu ne participes pas à ce duel.</p>
+          <Link href="/" className={gameLink}>
+            Retour au hub
+          </Link>
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-16">
-      <div className="space-y-1">
-        <p className="text-xs font-medium uppercase tracking-wider text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-          Préparation du trade
+    <>
+      <GameHudBar>
+        <Link href="/" className="shrink-0">
+          <GameLogo className="!text-sm sm:!text-base" />
+        </Link>
+        <p className="hidden font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.25em] text-[var(--game-text-muted)] sm:block">
+          Loadout combat
         </p>
-        <h1 className="text-xl font-semibold tracking-tight">
-          {duel.creatorPseudo} vs {duel.opponentPseudo}
-        </h1>
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
-          Mise : {formatUsdc(duel.stakeUsdc)} USDC chacun · durée prévue {Math.round(duel.durationSeconds / 60)} min
-        </p>
-      </div>
+      </GameHudBar>
 
-      <div className="rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6 space-y-3 text-sm">
-        <p>
-          Statut prêt :{" "}
-          <span className="font-mono">
-            [{duel.readyState[0]}, {duel.readyState[1]}]
-          </span>{" "}
-          (créateur, adversaire)
-        </p>
-        <p className="text-[color-mix(in_oklab,var(--foreground)60%,transparent)]">
-          Entre ton mot de passe wallet <span className="font-medium text-foreground">avant</span> de te
-          marquer prêt : il ne quitte pas ton navigateur. Quand les deux sont prêts, compte à rebours 3 →
-          1 puis <span className="font-medium text-foreground">signature automatique</span> des deux côtés
-          au même moment (chaque joueur sur son écran).
-        </p>
-      </div>
-
-      {!duel.myReady ? (
-        <div className="space-y-4 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6">
-          <h2 className="font-semibold">Tes paramètres Gains</h2>
-          <label className="block space-y-1">
-            <span className="text-xs uppercase text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-              Mot de passe wallet (Dynamic)
-            </span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Pour signer à la fin du compte à rebours"
-              className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2 text-sm"
-              autoComplete="current-password"
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-xs uppercase text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-              Pair index
-            </span>
-            <input
-              type="number"
-              min={0}
-              max={65535}
-              value={pairIndex}
-              onChange={(e) => setPairIndex(Number.parseInt(e.target.value, 10) || 0)}
-              className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-xs uppercase text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-              Levier (×)
-            </span>
-            <input
-              type="number"
-              min={1}
-              max={500}
-              value={leverageX}
-              onChange={(e) => setLeverageX(Number.parseInt(e.target.value, 10) || 1)}
-              className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={long}
-              onChange={(e) => setLong(e.target.checked)}
-            />
-            <span>Long (décoche pour short)</span>
-          </label>
-          {readyError ? (
-            <p className="text-sm text-red-600 dark:text-red-400">{readyError}</p>
-          ) : null}
-          <button
-            type="button"
-            disabled={readyLoading || !password.trim()}
-            onClick={() => void onMarkReady()}
-            className="w-full rounded-xl bg-foreground py-2.5 text-sm font-medium text-background disabled:opacity-50"
-          >
-            {readyLoading ? "Envoi…" : "J’ai fini — marquer prêt"}
-          </button>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-[color-mix(in_oklab,var(--foreground)6%,transparent)] px-4 py-3 text-sm">
-          <p className="font-medium text-foreground">Tu es marqué prêt.</p>
-          <p className="mt-1 text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
-            Pair {pairIndex} · {leverageX}× · {long ? "Long" : "Short"} · mot de passe conservé pour la
-            signature auto
+      <main className="mx-auto flex max-w-lg flex-1 flex-col gap-6 px-4 py-10 sm:py-14">
+        <div className="space-y-3">
+          <p className={gameSubtitle}>Préparation du trade</p>
+          <h1 className={`${gameTitle} !text-xl sm:!text-2xl`}>Configuration Gains</h1>
+          <GameVsBanner
+            left={duel.creatorPseudo}
+            right={duel.opponentPseudo ?? "—"}
+            leftTag="Créateur"
+            rightTag="Adversaire"
+          />
+          <p className={gameMuted}>
+            Mise : {formatUsdc(duel.stakeUsdc)} USDC chacun · durée {Math.round(duel.durationSeconds / 60)}{" "}
+            min
           </p>
         </div>
-      )}
 
-      {duel.myReady && !duel.bothReady ? (
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
-          En attente de l’autre joueur…
-        </p>
-      ) : null}
-
-      {duel.bothReady && cd !== null ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <p className="text-7xl font-bold tabular-nums text-white">{cd}</p>
+        <div className={`${gamePanel} ${gamePanelTopAccent} space-y-3 p-6 text-sm`}>
+          <p className="font-[family-name:var(--font-share-tech)] text-[var(--game-cyan)]">
+            Statut prêt [{duel.readyState[0]}, {duel.readyState[1]}] <span className="text-[var(--game-text-muted)]">· créateur, adversaire</span>
+          </p>
+          <p className={gameMuted}>
+            Entre ton mot de passe wallet <span className="font-semibold text-[var(--game-text)]">avant</span> de te
+            marquer prêt. Compte à rebours 3 → 1 puis{" "}
+            <span className="font-semibold text-[var(--game-magenta)]">signature auto</span> des deux côtés.
+          </p>
         </div>
-      ) : null}
 
-      {duel.bothReady && countdownFinished ? (
-        <div className="space-y-4 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6">
-          <h2 className="font-semibold">Lancement du trade</h2>
-          {execLoading && !txHash ? (
-            <p className="text-sm text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
-              Signature en cours avec le mot de passe saisi à l’étape précédente…
+        {!duel.myReady ? (
+          <div className={`${gamePanel} space-y-4 p-6`}>
+            <h2 className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)]">
+              Tes paramètres
+            </h2>
+            <label className="block space-y-2">
+              <span className={gameLabel}>Mot de passe wallet (Dynamic)</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Pour signer après le countdown"
+                className={gameInput}
+                autoComplete="current-password"
+              />
+            </label>
+            <label className="block space-y-2">
+              <span className={gameLabel}>Pair index</span>
+              <input
+                type="number"
+                min={0}
+                max={65535}
+                value={pairIndex}
+                onChange={(e) => setPairIndex(Number.parseInt(e.target.value, 10) || 0)}
+                className={gameInput}
+              />
+            </label>
+            <label className="block space-y-2">
+              <span className={gameLabel}>Levier (×)</span>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={leverageX}
+                onChange={(e) => setLeverageX(Number.parseInt(e.target.value, 10) || 1)}
+                className={gameInput}
+              />
+            </label>
+            <label className="flex cursor-pointer items-center gap-3 text-sm text-[var(--game-text)]">
+              <input
+                type="checkbox"
+                checked={long}
+                onChange={(e) => setLong(e.target.checked)}
+                className="size-4 accent-[var(--game-cyan)]"
+              />
+              <span>Long (décoche pour short)</span>
+            </label>
+            {readyError ? (
+              <p className="text-sm text-[var(--game-danger)]">{readyError}</p>
+            ) : null}
+            <button
+              type="button"
+              disabled={readyLoading || !password.trim()}
+              onClick={() => void onMarkReady()}
+              className={gameBtnPrimary}
+            >
+              {readyLoading ? "Envoi…" : "Marquer prêt — GO"}
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-sm border-2 border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] px-4 py-4 text-sm">
+            <p className="font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-cyan)]">
+              Prêt confirmé
             </p>
-          ) : null}
-          {!execLoading && !txHash && !execError ? (
-            <p className="text-sm text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
-              Démarrage automatique…
+            <p className={`${gameMuted} mt-1`}>
+              Pair {pairIndex} · {leverageX}× · {long ? "Long" : "Short"} · mot de passe en mémoire pour la
+              signature auto
             </p>
-          ) : null}
-          {execError ? (
-            <div className="space-y-3">
-              <p className="text-sm text-red-600 dark:text-red-400">{execError}</p>
-              <label className="block space-y-1">
-                <span className="text-xs uppercase text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-                  Corriger le mot de passe si besoin
-                </span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2 text-sm"
-                  autoComplete="current-password"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={execLoading || !password.trim()}
-                onClick={() => void onRetrySign()}
-                className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)18%,transparent)] py-2.5 text-sm font-medium disabled:opacity-50"
-              >
-                Réessayer la signature
-              </button>
-            </div>
-          ) : null}
-          {txHash ? (
-            <p className="break-all font-mono text-xs text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
-              Tx : {txHash}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+          </div>
+        )}
 
-      <Link
-        href={`/duel/${duelId}`}
-        className="text-center text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)] underline-offset-4 hover:underline"
-      >
-        Retour au salon
-      </Link>
-    </main>
+        {duel.myReady && !duel.bothReady ? (
+          <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-[0.2em] text-[var(--game-amber)]`}>
+            En attente de l’adversaire…
+          </p>
+        ) : null}
+
+        {duel.bothReady && cd !== null ? (
+          <div className="game-countdown-overlay fixed inset-0 z-50 flex flex-col items-center justify-center">
+            <p className="mb-6 font-[family-name:var(--font-orbitron)] text-[10px] font-black uppercase tracking-[0.5em] text-[var(--game-magenta)] [text-shadow:0_0_16px_rgba(255,61,154,0.6)]">
+              Engagement
+            </p>
+            <p className="game-countdown-num tabular-nums">{cd}</p>
+            <p className="mt-8 font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-[0.35em] text-[var(--game-text-muted)]">
+              Les positions vont s’ouvrir
+            </p>
+          </div>
+        ) : null}
+
+        {duel.bothReady && countdownFinished ? (
+          <div className={`${gamePanel} ${gamePanelTopAccent} space-y-4 p-6`}>
+            <h2 className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-amber)]">
+              Lancement du trade
+            </h2>
+            {execLoading && !txHash ? (
+              <p className={gameMuted}>Signature en cours (mot de passe saisi plus haut)…</p>
+            ) : null}
+            {!execLoading && !txHash && !execError ? (
+              <p className={gameMuted}>Démarrage automatique…</p>
+            ) : null}
+            {execError ? (
+              <div className="space-y-3">
+                <p className="text-sm text-[var(--game-danger)]">{execError}</p>
+                <label className="block space-y-2">
+                  <span className={gameLabel}>Corriger le mot de passe</span>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={gameInput}
+                    autoComplete="current-password"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={execLoading || !password.trim()}
+                  onClick={() => void onRetrySign()}
+                  className="w-full rounded-sm border-2 border-[var(--game-magenta)] bg-transparent py-2.5 text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)] transition enabled:hover:bg-[rgba(255,61,154,0.12)] disabled:opacity-50"
+                >
+                  Réessayer la signature
+                </button>
+              </div>
+            ) : null}
+            {txHash ? (
+              <p className="break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-cyan)]">
+                Tx : {txHash}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <Link href={`/duel/${duelId}`} className={`${gameLink} text-center`}>
+          ← Retour au salon
+        </Link>
+      </main>
+    </>
   );
 }

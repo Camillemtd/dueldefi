@@ -3,6 +3,21 @@
 import Link from "next/link";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
+import {
+  GameHudBar,
+  GameLogo,
+  gameBtnGhost,
+  gameBtnPrimary,
+  gameInput,
+  gameLabel,
+  gameLink,
+  gameMuted,
+  gamePanel,
+  gamePanelTopAccent,
+  gameSubtitle,
+  gameTitle,
+} from "@/components/game-ui";
+
 export default function NewDuelPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -72,115 +87,115 @@ export default function NewDuelPage() {
 
   if (!authChecked) {
     return (
-      <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-16">
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-          Chargement…
-        </p>
-      </main>
+      <>
+        <GameHudBar>
+          <GameLogo className="!text-sm" />
+        </GameHudBar>
+        <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-16">
+          <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-widest`}>
+            Chargement…
+          </p>
+        </main>
+      </>
     );
   }
 
   if (!loggedIn) {
     return (
-      <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-16">
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
-          Connecte-toi pour créer un duel.
-        </p>
-        <Link
-          href="/"
-          className="text-center text-sm font-medium text-foreground underline-offset-4 hover:underline"
-        >
-          Retour à l’accueil
-        </Link>
-      </main>
+      <>
+        <GameHudBar>
+          <GameLogo className="!text-sm" />
+        </GameHudBar>
+        <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-16">
+          <p className={gameMuted}>Connecte-toi pour créer une arène.</p>
+          <Link href="/" className={gameLink}>
+            Retour au hub
+          </Link>
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-8 px-4 py-16">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Nouveau duel</h1>
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
-          Définis la mise (chaque joueur) et le temps imparti pour le trade. Un lien sera généré
-          pour inviter l’adversaire.
+    <>
+      <GameHudBar>
+        <Link href="/" className="shrink-0">
+          <GameLogo className="!text-sm sm:!text-base" />
+        </Link>
+        <p className="font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--game-text-muted)]">
+          Création
         </p>
-      </div>
+      </GameHudBar>
 
-      <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
-        <label className="block space-y-1">
-          <span className="text-xs font-medium uppercase tracking-wider text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-            Mise par joueur (USDC)
-          </span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={stakeUsdc}
-            onChange={(e) => setStakeUsdc(e.target.value)}
-            placeholder="ex. 100 ou 50,5"
-            className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2 text-sm"
-            required
-          />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-xs font-medium uppercase tracking-wider text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-            Durée du trade (minutes)
-          </span>
-          <input
-            type="number"
-            min={1}
-            max={10080}
-            value={durationMinutes}
-            onChange={(e) => setDurationMinutes(e.target.value)}
-            className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2 text-sm"
-            required
-          />
-        </label>
-        {error ? (
-          <p className="rounded-lg bg-red-500/12 px-3 py-2 text-sm text-red-600 dark:text-red-400">
-            {error}
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-4 py-10 sm:py-14">
+        <div className="space-y-2">
+          <p className={gameSubtitle}>Nouvelle partie</p>
+          <h1 className={gameTitle}>Créer un duel</h1>
+          <p className={gameMuted}>
+            Mise par joueur et durée du trade. Un lien d’invitation sera généré pour ton adversaire.
           </p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-xl bg-foreground py-2.5 text-sm font-medium text-background disabled:opacity-50"
-        >
-          {loading ? "Enregistrement…" : "Créer le duel et obtenir le lien"}
-        </button>
-      </form>
-
-      {joinUrl ? (
-        <div className="space-y-2 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-4">
-          <p className="text-sm font-medium">Lien à envoyer à l’adversaire</p>
-          <p className="break-all font-mono text-xs text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
-            {joinUrl}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void copyUrl()}
-              className="rounded-lg border border-[color-mix(in_oklab,var(--foreground)18%,transparent)] px-3 py-1.5 text-xs font-medium"
-            >
-              Copier
-            </button>
-            {joinPath ? (
-              <Link
-                href={joinPath}
-                className="inline-flex items-center rounded-lg border border-[color-mix(in_oklab,var(--foreground)18%,transparent)] px-3 py-1.5 text-xs font-medium"
-              >
-                Ouvrir le salon
-              </Link>
-            ) : null}
-          </div>
         </div>
-      ) : null}
 
-      <Link
-        href="/"
-        className="text-center text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)] underline-offset-4 hover:underline"
-      >
-        Retour à l’accueil
-      </Link>
-    </main>
+        <form onSubmit={(e) => void onSubmit(e)} className={`${gamePanel} ${gamePanelTopAccent} space-y-4 p-6`}>
+          <label className="block space-y-2">
+            <span className={gameLabel}>Mise par joueur (USDC)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={stakeUsdc}
+              onChange={(e) => setStakeUsdc(e.target.value)}
+              placeholder="ex. 100 ou 50,5"
+              className={gameInput}
+              required
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className={gameLabel}>Durée du trade (minutes)</span>
+            <input
+              type="number"
+              min={1}
+              max={10080}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(e.target.value)}
+              className={gameInput}
+              required
+            />
+          </label>
+          {error ? (
+            <p className="rounded-sm border border-[var(--game-danger)]/50 bg-[rgba(255,68,102,0.12)] px-3 py-2 text-sm text-[var(--game-danger)]">
+              {error}
+            </p>
+          ) : null}
+          <button type="submit" disabled={loading} className={gameBtnPrimary}>
+            {loading ? "Création…" : "Générer l’arène + lien"}
+          </button>
+        </form>
+
+        {joinUrl ? (
+          <div className={`${gamePanel} space-y-3 border-[var(--game-magenta-dim)] p-5`}>
+            <p className="font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-magenta)]">
+              Lien d’invitation
+            </p>
+            <p className="break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-cyan)]">
+              {joinUrl}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => void copyUrl()} className={`${gameBtnGhost} !w-auto`}>
+                Copier
+              </button>
+              {joinPath ? (
+                <Link href={joinPath} className={`${gameBtnGhost} !w-auto border-[var(--game-magenta-dim)] text-[var(--game-magenta)]`}>
+                  Ouvrir le salon
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        <Link href="/" className={`${gameLink} text-center`}>
+          ← Retour au hub
+        </Link>
+      </main>
+    </>
   );
 }

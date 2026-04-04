@@ -4,6 +4,16 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { parseUnits } from "viem";
 
+import {
+  gameBtnPrimary,
+  gameLabel,
+  gameMuted,
+  gamePanel,
+  gamePanelTopAccent,
+  gameTabActive,
+  gameTabRow,
+  gameTitle,
+} from "@/components/game-ui";
 import { LoginForm } from "@/components/login-form";
 import { SignupForm } from "@/components/signup-form";
 
@@ -139,7 +149,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
   if (duelLoading) {
     return (
-      <p className="text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
+      <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-widest`}>
         Chargement…
       </p>
     );
@@ -147,7 +157,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
   if (duelError || !duel) {
     return (
-      <p className="rounded-lg bg-red-500/12 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+      <p className="rounded-sm border border-[var(--game-danger)]/50 bg-[rgba(255,68,102,0.12)] px-3 py-2 text-sm text-[var(--game-danger)]">
         {duelError ?? "Duel introuvable."}
       </p>
     );
@@ -155,34 +165,27 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
   if (!duel.viewer) {
     return (
-      <div className="space-y-4 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold tracking-tight">Rejoindre le duel</h2>
-          <p className="text-sm text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
+      <div className={`${gamePanel} ${gamePanelTopAccent} space-y-4 p-6`}>
+        <div className="space-y-2">
+          <p className={gameLabel}>Invité</p>
+          <h2 className={`${gameTitle} text-lg sm:text-xl`}>Rejoindre l’arène</h2>
+          <p className={gameMuted}>
             Connecte-toi ou crée un compte. Ensuite tu verras ton solde USDC sur le wallet du compte : il
             doit couvrir la mise ({formatUsdcLabel(duel.stakeUsdc)} USDC) pour accepter.
           </p>
         </div>
-        <div className="flex rounded-xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] p-1">
+        <div className={gameTabRow}>
           <button
             type="button"
             onClick={() => setAuthMode("login")}
-            className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-              authMode === "login"
-                ? "bg-[color-mix(in_oklab,var(--foreground)10%,transparent)] text-foreground"
-                : "text-[color-mix(in_oklab,var(--foreground)55%,transparent)]"
-            }`}
+            className={`flex-1 rounded-sm py-2.5 text-xs font-bold uppercase tracking-wider transition ${gameTabActive(authMode === "login")}`}
           >
             Connexion
           </button>
           <button
             type="button"
             onClick={() => setAuthMode("signup")}
-            className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-              authMode === "signup"
-                ? "bg-[color-mix(in_oklab,var(--foreground)10%,transparent)] text-foreground"
-                : "text-[color-mix(in_oklab,var(--foreground)55%,transparent)]"
-            }`}
+            className={`flex-1 rounded-sm py-2.5 text-xs font-bold uppercase tracking-wider transition ${gameTabActive(authMode === "signup")}`}
           >
             Créer un compte
           </button>
@@ -198,17 +201,17 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
   if (duel.viewer.isCreator) {
     return (
-      <div className="rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6 text-sm text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
-        <p className="font-medium text-foreground">Tu es l’hôte de ce duel</p>
-        <p className="mt-2">
+      <div className={`${gamePanel} ${gamePanelTopAccent} space-y-3 p-6`}>
+        <p className={gameLabel}>Hôte</p>
+        <p className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-text)]">
+          Tu contrôles cette arène
+        </p>
+        <p className={gameMuted}>
           Envoie le lien à ton adversaire : il devra se connecter, puis accepter avec un wallet qui a
           au moins {formatUsdcLabel(duel.stakeUsdc)} USDC sur la chaîne du faucet.
         </p>
         {duel.duelFull ? (
-          <Link
-            href={`/duel/${duelId}/prepare`}
-            className="mt-4 inline-flex rounded-xl bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
-          >
+          <Link href={`/duel/${duelId}/prepare`} className={`${gameBtnPrimary} mt-2 !w-auto px-5`}>
             Configurer mon trade
           </Link>
         ) : null}
@@ -218,16 +221,16 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
   if (duel.viewer.isOpponent) {
     return (
-      <div className="rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6 text-sm text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
-        <p className="font-medium text-foreground">Tu participes à ce duel</p>
-        <p className="mt-2">
-          Tu es enregistré comme adversaire de <span className="font-medium">{duel.creatorPseudo}</span>
+      <div className={`${gamePanel} ${gamePanelTopAccent} space-y-3 p-6`}>
+        <p className={gameLabel}>Combattant</p>
+        <p className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-text)]">
+          Tu es dans le match
+        </p>
+        <p className={gameMuted}>
+          Adversaire : <span className="font-semibold text-[var(--game-cyan)]">{duel.creatorPseudo}</span>
           . Configure ton trade puis marque-toi prêt en même temps que l’hôte.
         </p>
-        <Link
-          href={`/duel/${duelId}/prepare`}
-          className="mt-4 inline-flex rounded-xl bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
-        >
+        <Link href={`/duel/${duelId}/prepare`} className={`${gameBtnPrimary} mt-2 !w-auto px-5`}>
           Configurer mon trade
         </Link>
       </div>
@@ -236,59 +239,58 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
   if (duel.duelFull) {
     return (
-      <div className="rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6 text-sm text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
-        <p className="font-medium text-foreground">Duel complet</p>
-        <p className="mt-2">
-          {duel.creatorPseudo} vs {duel.opponentPseudo ?? "?"}. Tu ne peux pas rejoindre cette partie.
+      <div className={`${gamePanel} border-[var(--game-magenta-dim)] p-6`}>
+        <p className={gameLabel}>Match verrouillé</p>
+        <p className="font-[family-name:var(--font-orbitron)] text-sm font-bold text-[var(--game-text)]">
+          {duel.creatorPseudo} <span className="text-[var(--game-amber)]">VS</span>{" "}
+          {duel.opponentPseudo ?? "?"}
         </p>
+        <p className={`${gameMuted} mt-2`}>Tu ne peux pas rejoindre cette partie.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-6">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight">Accepter le duel</h2>
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
+    <div className={`${gamePanel} ${gamePanelTopAccent} space-y-4 p-6`}>
+      <div className="space-y-2">
+        <p className={gameLabel}>Dernière ligne droite</p>
+        <h2 className={`${gameTitle} text-lg sm:text-xl`}>Accepter le duel</h2>
+        <p className={gameMuted}>
           Mise requise (chacun) :{" "}
-          <span className="font-mono font-medium text-foreground">
+          <span className="font-[family-name:var(--font-share-tech)] font-medium text-[var(--game-cyan)]">
             {formatUsdcLabel(duel.stakeUsdc)} USDC
           </span>
         </p>
       </div>
 
       {balanceLoading ? (
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-          Lecture du solde sur ton wallet…
+        <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider`}>
+          Lecture du solde…
         </p>
       ) : null}
 
       {!balanceLoading && balance ? (
-        <div className="space-y-2 text-sm">
+        <div className={`space-y-2 text-sm ${gameMuted}`}>
           {!balance.configured ? (
-            <p className="rounded-lg bg-amber-500/12 px-3 py-2 text-amber-800 dark:text-amber-200">
+            <p className="rounded-sm border border-[var(--game-amber)]/40 bg-[rgba(255,200,74,0.1)] px-3 py-2 text-[var(--game-amber)]">
               {balance.error ??
                 "Solde indisponible : vérifie FAUCET_RPC_URL et GNS_COLLATERAL_TOKEN_ADDRESS."}
             </p>
           ) : (
             <>
               <p>
-                <span className="text-[color-mix(in_oklab,var(--foreground)55%,transparent)]">
-                  Ton solde (wallet du compte) :{" "}
-                </span>
-                <span className="font-mono font-medium text-foreground">
+                <span className="text-[var(--game-text-muted)]">Ton solde : </span>
+                <span className="font-[family-name:var(--font-share-tech)] font-medium text-[var(--game-text)]">
                   {balance.formatted} USDC
                 </span>
               </p>
               {!canAccept ? (
-                <p className="text-red-600 dark:text-red-400">
+                <p className="text-[var(--game-danger)]">
                   Solde insuffisant pour couvrir la mise. Utilise le faucet (getFreeDai) ou transfère
                   des USDC sur ce wallet.
                 </p>
               ) : (
-                <p className="text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
-                  Tu peux accepter : ton solde couvre la mise.
-                </p>
+                <p className="text-[var(--game-cyan)]">Prêt à entrer : solde OK.</p>
               )}
             </>
           )}
@@ -296,7 +298,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
       ) : null}
 
       {joinError ? (
-        <p className="rounded-lg bg-red-500/12 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+        <p className="rounded-sm border border-[var(--game-danger)]/50 bg-[rgba(255,68,102,0.12)] px-3 py-2 text-sm text-[var(--game-danger)]">
           {joinError}
         </p>
       ) : null}
@@ -305,9 +307,9 @@ export function DuelAcceptPanel({ duelId }: Props) {
         type="button"
         disabled={joinLoading || !canAccept || !balance?.configured}
         onClick={() => void onJoin()}
-        className="w-full rounded-xl bg-foreground py-2.5 text-sm font-medium text-background disabled:opacity-50"
+        className={gameBtnPrimary}
       >
-        {joinLoading ? "Enregistrement…" : "Accepter le duel"}
+        {joinLoading ? "Enregistrement…" : "Entrer dans l’arène"}
       </button>
     </div>
   );

@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { formatUnits } from "viem";
 
+import { gameBtnPrimary, gameInput, gameLabel, gameMuted, gamePanel, gamePanelTopAccent, gameTitle } from "@/components/game-ui";
 import type { TradeCollateralSelection } from "@/types/trade-collateral";
 
 type Props = {
@@ -54,13 +55,13 @@ export function OpenTestTradeForm({ sessionUsername, collateralSelection }: Prop
   }
 
   return (
-    <div className="mx-auto w-full max-w-md space-y-4 rounded-2xl border border-[color-mix(in_oklab,var(--foreground)12%,transparent)] bg-[color-mix(in_oklab,var(--foreground)4%,transparent)] p-8">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold tracking-tight">Gains — test openTrade</h2>
-        <p className="text-sm text-[color-mix(in_oklab,var(--foreground)65%,transparent)]">
-          Dynamic MPC : mot de passe pour signer approve + openTrade. Le collatéral envoyé au
-          contrat est celui choisi dans le bloc « Montant à utiliser pour le trade » (
-          <span className="font-medium text-foreground">
+    <div className={`${gamePanel} ${gamePanelTopAccent} mx-auto w-full max-w-md space-y-4 p-8`}>
+      <div className="space-y-2">
+        <p className={gameLabel}>Mode entraînement</p>
+        <h2 className={`${gameTitle} text-lg sm:text-xl`}>Gains — openTrade test</h2>
+        <p className={gameMuted}>
+          Dynamic MPC : mot de passe pour approve + openTrade. Collatéral = bloc « Montant pour le trade » (
+          <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-cyan)]">
             {collateralSelection
               ? (() => {
                   try {
@@ -69,13 +70,14 @@ export function OpenTestTradeForm({ sessionUsername, collateralSelection }: Prop
                     return `${collateralSelection.collateralAmountRaw} (${collateralSelection.symbol})`;
                   }
                 })()
-              : "— choisis un montant valide au-dessus —"}
+              : "— choisis un montant —"}
           </span>
           ).
           {sessionUsername ? (
             <>
               {" "}
-              Connecté : <span className="font-medium text-foreground">{sessionUsername}</span>.
+              Joueur :{" "}
+              <span className="font-semibold text-[var(--game-text)]">{sessionUsername}</span>.
             </>
           ) : null}
         </p>
@@ -84,33 +86,29 @@ export function OpenTestTradeForm({ sessionUsername, collateralSelection }: Prop
         <input
           name="password"
           type="password"
-          placeholder="Wallet password (same as signup)"
+          placeholder="Mot de passe wallet (inscription)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-xl border border-[color-mix(in_oklab,var(--foreground)15%,transparent)] bg-background px-3 py-2 text-sm"
+          className={gameInput}
           autoComplete="current-password"
           required
         />
-        <button
-          type="submit"
-          disabled={loading || !collateralSelection}
-          className="w-full rounded-xl bg-foreground py-2.5 text-sm font-medium text-background disabled:opacity-50"
-        >
-          {loading ? "Envoi…" : "Open test trade"}
+        <button type="submit" disabled={loading || !collateralSelection} className={gameBtnPrimary}>
+          {loading ? "Envoi…" : "Lancer le trade test"}
         </button>
       </form>
       {error ? (
-        <p className="rounded-lg bg-red-500/12 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+        <p className="rounded-sm border border-[var(--game-danger)]/50 bg-[rgba(255,68,102,0.12)] px-3 py-2 text-sm text-[var(--game-danger)]">
           {error}
         </p>
       ) : null}
       {approveTxHash ? (
-        <p className="break-all font-mono text-xs text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
+        <p className="break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
           Approve tx: {approveTxHash}
         </p>
       ) : null}
       {txHash ? (
-        <p className="break-all font-mono text-xs text-[color-mix(in_oklab,var(--foreground)72%,transparent)]">
+        <p className="break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
           openTrade tx: {txHash}
         </p>
       ) : null}

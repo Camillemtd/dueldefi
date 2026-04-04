@@ -64,6 +64,15 @@ export function DuelPrepareView() {
   const [txHash, setTxHash] = useState<string | null>(null);
   /** Une seule tentative auto à la fin du compte à rebours (évite double envoi). */
   const autoSignStartedRef = useRef(false);
+  const passwordRef = useRef(password);
+  const txHashRef = useRef(txHash);
+  const onExecuteRef = useRef<() => Promise<void>>(async () => {});
+  const scheduleSignTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Évite de reprogrammer le même `readyBothAt` à chaque poll. */
+  const scheduledForReadyBothAtRef = useRef<string | null>(null);
+
+  passwordRef.current = password;
+  txHashRef.current = txHash;
 
   const loadDuel = useCallback(async () => {
     if (!duelId) return;
@@ -82,6 +91,38 @@ export function DuelPrepareView() {
         setLeverageX(data.myTradeConfig.leverageX);
         setLong(data.myTradeConfig.long);
       }
+
+      // Même instant cible pour les deux clients : `readyBothAt` (serveur) + compte à rebours, pas le prochain poll/tick React.
+      const v = data.viewer;
+      const canSign = Boolean(v && (v.isCreator || v.isOpponent));
+      const anchor = data.readyBothAt;
+      const alreadyScheduledForAnchor =
+        anchor != null &&
+        scheduledForReadyBothAtRef.current === anchor &&
+        (scheduleSignTimeoutRef.current !== null || autoSignStartedRef.current);
+      if (
+        data.bothReady &&
+        anchor &&
+        canSign &&
+        !txHashRef.current &&
+        passwordRef.current.trim() &&
+        !alreadyScheduledForAnchor
+      ) {
+        scheduledForReadyBothAtRef.current = anchor;
+        if (scheduleSignTimeoutRef.current) {
+          clearTimeout(scheduleSignTimeoutRef.current);
+          scheduleSignTimeoutRef.current = null;
+        }
+        const fireAt = new Date(anchor).getTime() + COUNTDOWN_TOTAL_MS;
+        const delay = Math.max(0, fireAt - Date.now());
+        scheduleSignTimeoutRef.current = setTimeout(() => {
+          scheduleSignTimeoutRef.current = null;
+          if (txHashRef.current || autoSignStartedRef.current) return;
+          if (!passwordRef.current.trim()) return;
+          autoSignStartedRef.current = true;
+          void onExecuteRef.current();
+        }, delay);
+      }
     } catch {
       setDuel(null);
       setLoadError("Erreur réseau.");
@@ -93,6 +134,24 @@ export function DuelPrepareView() {
   useEffect(() => {
     void loadDuel();
   }, [loadDuel]);
+
+  useEffect(() => {
+    return () => {
+      if (scheduleSignTimeoutRef.current) {
+        clearTimeout(scheduleSignTimeoutRef.current);
+        scheduleSignTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    scheduledForReadyBothAtRef.current = null;
+    autoSignStartedRef.current = false;
+    if (scheduleSignTimeoutRef.current) {
+      clearTimeout(scheduleSignTimeoutRef.current);
+      scheduleSignTimeoutRef.current = null;
+    }
+  }, [duelId]);
 
   const participant =
     duel?.viewer && (duel.viewer.isCreator || duel.viewer.isOpponent);
@@ -181,15 +240,7 @@ export function DuelPrepareView() {
     }
   }, [duelId, password]);
 
-  useEffect(() => {
-    if (!countdownFinished) return;
-    if (!password.trim() || !duelId) return;
-    if (txHash) return;
-    if (execLoading) return;
-    if (autoSignStartedRef.current) return;
-    autoSignStartedRef.current = true;
-    void onExecute();
-  }, [countdownFinished, password, duelId, txHash, execLoading, onExecute]);
+  onExecuteRef.current = onExecute;
 
   function onRetrySign() {
     autoSignStartedRef.current = false;

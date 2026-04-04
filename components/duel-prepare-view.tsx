@@ -21,6 +21,7 @@ import {
   gameSubtitle,
   gameTitle,
 } from "@/components/game-ui";
+import { duelVsBannerForViewer } from "@/lib/duel/viewer-vs-order";
 import { gainsPositionHistorySideKey, type GainsApiChain, type GainsTradingPair } from "@/types/gains-api";
 import type { DuelTradeSideConfig } from "@/types/duel-trade";
 
@@ -79,6 +80,18 @@ function formatUsdc(raw: string) {
   }).format(n);
 }
 
+function formatOutcomePct(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const s = n >= 0 ? "+" : "";
+  return `${s}${n.toFixed(2)} %`;
+}
+
+function formatOutcomeUsdc(n: number | null): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const s = n >= 0 ? "+" : "";
+  return `${s}${formatUsdc(String(n))} USDC`;
+}
+
 function countdownNumber(readyBothAtIso: string | null, nowMs: number): number | null {
   if (!readyBothAtIso) return null;
   const t0 = new Date(readyBothAtIso).getTime();
@@ -116,6 +129,7 @@ export function DuelPrepareView() {
     pnlHistoryOpponent,
     duelRemainingSeconds,
     duelTimerEnded,
+    duelPnlOutcome,
     takeDuelEndCloseTargets,
     connectionState,
     lastWsError,
@@ -462,6 +476,13 @@ export function DuelPrepareView() {
     );
   }
 
+  const duelVsSides = duelVsBannerForViewer(
+    duel.creatorPseudo,
+    duel.opponentPseudo,
+    duel.viewer,
+    "—",
+  );
+
   return (
     <>
       <GameHudBar>
@@ -480,10 +501,10 @@ export function DuelPrepareView() {
           <p className={gameSubtitle}>Trade prep</p>
           <h1 className={`${gameTitle} !text-xl sm:!text-2xl`}>Gains setup</h1>
           <GameVsBanner
-            left={duel.creatorPseudo}
-            right={duel.opponentPseudo ?? "—"}
-            leftTag="Creator"
-            rightTag="Opponent"
+            left={duelVsSides.left}
+            right={duelVsSides.right}
+            leftTag={duelVsSides.leftTag}
+            rightTag={duelVsSides.rightTag}
           />
           <p className={gameMuted}>
             Stake: {formatUsdc(duel.stakeUsdc)} USDC each · duration {Math.round(duel.durationSeconds / 60)} min
@@ -530,6 +551,64 @@ export function DuelPrepareView() {
               </p>
             </div>
 
+            {duelTimerEnded && duelPnlOutcome ? (
+              <div
+                className={`${gamePanel} ${gamePanelTopAccent} space-y-4 p-6 ${
+                  duelPnlOutcome.winner === "you"
+                    ? "border-[var(--game-cyan)]/70 shadow-[0_0_32px_rgba(65,245,240,0.15)]"
+                    : duelPnlOutcome.winner === "opponent"
+                      ? "border-[var(--game-magenta)]/60"
+                      : ""
+                }`}
+              >
+                <p className={gameLabel}>Résultat du duel</p>
+                <h2
+                  className={`font-[family-name:var(--font-orbitron)] text-xl font-black uppercase tracking-wide sm:text-2xl ${
+                    duelPnlOutcome.winner === "you"
+                      ? "text-[var(--game-cyan)] [text-shadow:0_0_20px_rgba(65,245,240,0.45)]"
+                      : duelPnlOutcome.winner === "opponent"
+                        ? "text-[var(--game-magenta)] [text-shadow:0_0_18px_rgba(255,61,154,0.4)]"
+                        : duelPnlOutcome.winner === "tie"
+                          ? "text-[var(--game-amber)]"
+                          : "text-[var(--game-text-muted)]"
+                  }`}
+                >
+                  {duelPnlOutcome.winner === "you"
+                    ? "Victoire"
+                    : duelPnlOutcome.winner === "opponent"
+                      ? "Défaite"
+                      : duelPnlOutcome.winner === "tie"
+                        ? "Égalité"
+                        : "Score incomplet"}
+                </h2>
+                <p className={`${gameMuted} text-[12px]`}>
+                  Classement sur le{" "}
+                  <span className="font-semibold text-[var(--game-text)]">PnL en %</span> au dernier tick à ~1 s (ou dernier %
+                  connu si la position a été fermée avant la fin).
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4 sm:order-1">
+                    <p className={gameLabel}>Adversaire</p>
+                    <p className="font-[family-name:var(--font-orbitron)] text-lg font-bold tabular-nums text-[var(--game-magenta)]">
+                      {formatOutcomePct(duelPnlOutcome.opponentPnlPct)}
+                    </p>
+                    <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
+                      PnL USDC : {formatOutcomeUsdc(duelPnlOutcome.opponentPnlUsdc)}
+                    </p>
+                  </div>
+                  <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4 sm:order-2">
+                    <p className={gameLabel}>Toi</p>
+                    <p className="font-[family-name:var(--font-orbitron)] text-lg font-bold tabular-nums text-[var(--game-cyan)]">
+                      {formatOutcomePct(duelPnlOutcome.myPnlPct)}
+                    </p>
+                    <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
+                      PnL USDC : {formatOutcomeUsdc(duelPnlOutcome.myPnlUsdc)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {duelAutoCloseBusy || duelAutoCloseResult ? (
               <div
                 className={`rounded-sm border px-4 py-3 text-sm ${
@@ -550,34 +629,39 @@ export function DuelPrepareView() {
             ) : null}
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <GainsLivePositionsPanel
-                panelTitle="Adversaire (live)"
-                positionCardLabel="Position adverse"
-                readOnly
-                showConnectionMeta={false}
-                positions={opponentPositions}
-                pnlHistoryByKey={pnlHistoryOpponent}
-                historyKeyForPosition={(p) => gainsPositionHistorySideKey("opponent", p)}
-                connectionState={connectionState}
-                lastWsError={lastWsError}
-                gainsWallet={gainsWallet}
-                gainsChain={gainsChain}
-                wsDuelId={duelId}
-                duelEnded={duelTimerEnded}
-              />
-              <GainsLivePositionsPanel
-                panelTitle="Mes positions (live)"
-                showConnectionMeta
-                positions={myPositions}
-                pnlHistoryByKey={pnlHistoryMy}
-                historyKeyForPosition={(p) => gainsPositionHistorySideKey("my", p)}
-                connectionState={connectionState}
-                lastWsError={lastWsError}
-                gainsWallet={gainsWallet}
-                gainsChain={gainsChain}
-                wsDuelId={duelId}
-                duelEnded={duelTimerEnded}
-              />
+              {/* Gauche : adversaire · Droite : toi */}
+              <div className="min-w-0">
+                <GainsLivePositionsPanel
+                  panelTitle="Adversaire (live)"
+                  positionCardLabel="Position adverse"
+                  readOnly
+                  showConnectionMeta={false}
+                  positions={opponentPositions}
+                  pnlHistoryByKey={pnlHistoryOpponent}
+                  historyKeyForPosition={(p) => gainsPositionHistorySideKey("opponent", p)}
+                  connectionState={connectionState}
+                  lastWsError={lastWsError}
+                  gainsWallet={gainsWallet}
+                  gainsChain={gainsChain}
+                  wsDuelId={duelId}
+                  duelEnded={duelTimerEnded}
+                />
+              </div>
+              <div className="min-w-0">
+                <GainsLivePositionsPanel
+                  panelTitle="Mes positions (live)"
+                  showConnectionMeta
+                  positions={myPositions}
+                  pnlHistoryByKey={pnlHistoryMy}
+                  historyKeyForPosition={(p) => gainsPositionHistorySideKey("my", p)}
+                  connectionState={connectionState}
+                  lastWsError={lastWsError}
+                  gainsWallet={gainsWallet}
+                  gainsChain={gainsChain}
+                  wsDuelId={duelId}
+                  duelEnded={duelTimerEnded}
+                />
+              </div>
             </div>
           </div>
         ) : (

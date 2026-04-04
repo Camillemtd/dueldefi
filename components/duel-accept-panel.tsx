@@ -17,6 +17,7 @@ import {
 } from "@/components/game-ui";
 import { LoginForm } from "@/components/login-form";
 import { SignupForm } from "@/components/signup-form";
+import { duelVsBannerForViewer } from "@/lib/duel/viewer-vs-order";
 
 type DuelApi = {
   id: string;
@@ -430,12 +431,17 @@ export function DuelAcceptPanel({ duelId }: Props) {
   }
 
   if (duel.duelFull) {
+    const lockedVs = duelVsBannerForViewer(
+      duel.creatorPseudo,
+      duel.opponentPseudo,
+      duel.viewer,
+      "?",
+    );
     return (
       <div className={`${gamePanel} border-[var(--game-magenta-dim)] p-6`}>
         <p className={gameLabel}>Match locked</p>
         <p className="font-[family-name:var(--font-orbitron)] text-sm font-bold text-[var(--game-text)]">
-          {duel.creatorPseudo} <span className="text-[var(--game-amber)]">VS</span>{" "}
-          {duel.opponentPseudo ?? "?"}
+          {lockedVs.left} <span className="text-[var(--game-amber)]">VS</span> {lockedVs.right}
         </p>
         <p className={`${gameMuted} mt-2`}>You cannot join this match.</p>
       </div>

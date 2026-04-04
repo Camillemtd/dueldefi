@@ -73,3 +73,30 @@ export function isGainsDuelPositionsSnapshot(data: unknown): data is GainsDuelPo
 export function gainsPositionHistorySideKey(side: "my" | "opponent", p: GainsPositionUpdate): string {
   return `${side}:${gainsPositionStreamKey(p)}`;
 }
+
+/** PnL % pour comparer les joueurs (priorité `percentChange`, sinon pnl / collatéral). */
+export function pnlPercentFromPosition(p: GainsPositionUpdate): number | null {
+  if (typeof p.percentChange === "number" && Number.isFinite(p.percentChange)) {
+    return p.percentChange;
+  }
+  const c = p.collateral;
+  if (typeof c === "number" && Number.isFinite(c) && c > 0 && typeof p.pnl === "number" && Number.isFinite(p.pnl)) {
+    return (p.pnl / c) * 100;
+  }
+  return null;
+}
+
+/** Meilleur score parmi les positions ouvertes (duel : en général une position — sinon max des %). */
+export function bestPnlScoreFromPositions(
+  positions: GainsPositionUpdate[],
+): { pct: number; pnlUsdc: number } | null {
+  let best: { pct: number; pnlUsdc: number } | null = null;
+  for (const p of positions) {
+    const pct = pnlPercentFromPosition(p);
+    if (pct == null) continue;
+    if (!best || pct > best.pct) {
+      best = { pct, pnlUsdc: typeof p.pnl === "number" && Number.isFinite(p.pnl) ? p.pnl : 0 };
+    }
+  }
+  return best;
+}

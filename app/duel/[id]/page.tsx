@@ -12,7 +12,10 @@ import {
   gameSubtitle,
   gameTitle,
 } from "@/components/game-ui";
+import { getSessionFromCookies } from "@/lib/auth/session";
+import { duelVsBannerForViewer } from "@/lib/duel/viewer-vs-order";
 import { findDuelWithPseudos } from "@/lib/db/duels";
+import { findUserById } from "@/lib/db/users";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -42,7 +45,25 @@ export default async function DuelLobbyPage({ params }: Props) {
   if (!duel) notFound();
 
   const stakeLabel = formatUsdcDisplay(duel.stake_usdc);
-  const opp = duel.opponent_pseudo ?? "Waiting…";
+
+  let viewer: { isCreator: boolean; isOpponent: boolean } | null = null;
+  const session = await getSessionFromCookies();
+  if (session) {
+    const user = await findUserById(session.userId);
+    if (user && user.pseudo === session.pseudo) {
+      viewer = {
+        isCreator: user.id === duel.creator_id,
+        isOpponent: duel.opponent_id !== null && user.id === duel.opponent_id,
+      };
+    }
+  }
+
+  const vs = duelVsBannerForViewer(
+    duel.creator_pseudo,
+    duel.opponent_pseudo,
+    viewer,
+    "Waiting…",
+  );
 
   return (
     <>
@@ -63,10 +84,10 @@ export default async function DuelLobbyPage({ params }: Props) {
         </div>
 
         <GameVsBanner
-          left={duel.creator_pseudo}
-          right={opp}
-          leftTag="Creator"
-          rightTag="Opponent"
+          left={vs.left}
+          right={vs.right}
+          leftTag={vs.leftTag}
+          rightTag={vs.rightTag}
         />
 
         <div className="grid grid-cols-2 gap-3">

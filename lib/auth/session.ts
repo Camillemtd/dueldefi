@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 
 export const SESSION_COOKIE_NAME = "defiduel_session";
@@ -67,6 +68,18 @@ export function clearSessionCookie(res: NextResponse) {
 
 export async function getSessionFromRequest(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!token) return null;
+  try {
+    return await verifySessionToken(token);
+  } catch {
+    return null;
+  }
+}
+
+/** Session côté Server Components / layouts (cookie HTTP-only). */
+export async function getSessionFromCookies() {
+  const store = await cookies();
+  const token = store.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
   try {
     return await verifySessionToken(token);

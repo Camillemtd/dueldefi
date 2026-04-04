@@ -10,6 +10,7 @@ import {
   gamePanelTopAccent,
 } from "@/components/game-ui";
 import { usePlayMode } from "@/components/play-mode-context";
+import { WalletWithdrawModal } from "@/components/wallet-withdraw-modal";
 import type { MobulaPortfolioPayload, MobulaPortfolioPosition } from "@/types/mobula-portfolio";
 
 type Props = {
@@ -43,6 +44,7 @@ export function WalletProfile({ walletAddress }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [payload, setPayload] = useState<MobulaPortfolioPayload | null>(null);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,8 +73,11 @@ export function WalletProfile({ walletAddress }: Props) {
     void load();
   }, [load, walletAddress, playMode]);
 
+  const canWithdraw =
+    Boolean(payload && payload.positions.length > 0 && !loading && !error);
+
   return (
-    <div className={`${gamePanel} ${gamePanelTopAccent} overflow-hidden`}>
+    <div className={`${gamePanel} ${gamePanelTopAccent} relative overflow-hidden`}>
       <div className="border-b border-[var(--game-cyan-dim)] bg-[linear-gradient(135deg,rgba(65,245,240,0.08),rgba(255,61,154,0.06))] px-6 py-6 sm:px-8 sm:py-8">
         <p className={gameLabel}>Wallet</p>
         <p className="mt-1 font-[family-name:var(--font-share-tech)] text-sm text-[var(--game-cyan)]">
@@ -102,18 +107,28 @@ export function WalletProfile({ walletAddress }: Props) {
       </div>
 
       <div className="space-y-4 p-6 sm:p-8">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--game-magenta)]">
             Holdings
           </p>
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className={`${gameBtnGhost} !w-auto shrink-0`}
-          >
-            Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setWithdrawOpen(true)}
+              disabled={!canWithdraw}
+              className={`${gameBtnGhost} !w-auto shrink-0 border-[var(--game-magenta-dim)] text-[var(--game-magenta)]`}
+            >
+              Retirer
+            </button>
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className={`${gameBtnGhost} !w-auto shrink-0`}
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -175,6 +190,13 @@ export function WalletProfile({ walletAddress }: Props) {
           </ul>
         ) : null}
       </div>
+
+      <WalletWithdrawModal
+        open={withdrawOpen}
+        onClose={() => setWithdrawOpen(false)}
+        positions={payload?.positions ?? []}
+        onSuccess={() => void load()}
+      />
     </div>
   );
 }

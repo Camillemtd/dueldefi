@@ -234,6 +234,13 @@ export function DuelPrepareView() {
         setLoadError(data.error ?? "Duel not found.")
         return
       }
+      console.log("[COUNTDOWN-DEBUG] loadDuel response", {
+        duelLiveAt: data.duelLiveAt,
+        duelClosedAt: data.duelClosedAt,
+        bothReady: data.bothReady,
+        duelStartSignalAt,
+        msSinceStart: duelStartSignalAt ? Date.now() - duelStartSignalAt : null,
+      })
       setDuel(data)
       if (data.myOpenTradeTxHash) {
         setTxHash(data.myOpenTradeTxHash)
@@ -272,10 +279,20 @@ export function DuelPrepareView() {
   /** Persiste « duel live » côté serveur dès réception du WS `start` (reload sans ré-attendre). */
   useEffect(() => {
     if (duelStartSignalAt == null || !duelId) return
+    console.log("[COUNTDOWN-DEBUG] /live POST triggered", {
+      duelStartSignalAt,
+      msSinceStart: Date.now() - duelStartSignalAt,
+      duelId,
+    })
     void fetch(`/api/duels/${duelId}/live`, {
       method: "POST",
       credentials: "include",
     }).then((r) => {
+      console.log("[COUNTDOWN-DEBUG] /live POST response", {
+        ok: r.ok,
+        status: r.status,
+        msSinceStart: duelStartSignalAt ? Date.now() - duelStartSignalAt : null,
+      })
       if (r.ok) void loadDuel()
     })
   }, [duelStartSignalAt, duelId, loadDuel])
@@ -308,16 +325,49 @@ export function DuelPrepareView() {
   }, [shouldPollDuel, loadDuel])
 
   useEffect(() => {
-    if (duelStartSignalAt != null) setNowTick(Date.now())
+    if (duelStartSignalAt != null) {
+      console.log("[COUNTDOWN-DEBUG] duelStartSignalAt changed, setting nowTick", {
+        duelStartSignalAt,
+        nowTick,
+      })
+      setNowTick(Date.now())
+    }
   }, [duelStartSignalAt])
 
   /** Compte à rebours 3-2-1 **uniquement** après `start` (affichage — indépendant de l’ouverture du trade). */
-  const serverPastStartGate = Boolean(duel?.duelLiveAt || duel?.duelClosedAt)
+  const serverPastStartGateRaw = Boolean(duel?.duelLiveAt || duel?.duelClosedAt)
+  /** On page reload (no local WS start signal), trust the server flag.
+   *  But if we received the WS start in this session and the 3-2-1 countdown
+   *  hasn’t finished yet, ignore the server flag so the overlay plays fully. */
+  const localCountdownActive =
+    duelStartSignalAt != null &&
+    duel?.bothReady === true &&
+    (Date.now() - duelStartSignalAt) < COUNTDOWN_TOTAL_MS
+  const serverPastStartGate = serverPastStartGateRaw && !localCountdownActive
 
   useEffect(() => {
-    if (!duel?.bothReady || duelStartSignalAt == null || serverPastStartGate)
+    console.log("[COUNTDOWN-DEBUG] countdown timer effect deps changed", {
+      bothReady: duel?.bothReady,
+      duelStartSignalAt,
+      serverPastStartGate,
+      duelLiveAt: duel?.duelLiveAt,
+      duelClosedAt: duel?.duelClosedAt,
+    })
+    if (!duel?.bothReady || duelStartSignalAt == null || serverPastStartGate) {
+      console.log("[COUNTDOWN-DEBUG] countdown timer effect BAILED", {
+        reason: !duel?.bothReady
+          ? "bothReady=false"
+          : duelStartSignalAt == null
+            ? "no duelStartSignalAt"
+            : "serverPastStartGate=true",
+      })
       return
+    }
     const elapsed = Date.now() - duelStartSignalAt
+    console.log("[COUNTDOWN-DEBUG] countdown timer starting interval", {
+      elapsed,
+      willBail: elapsed >= COUNTDOWN_TOTAL_MS,
+    })
     if (elapsed >= COUNTDOWN_TOTAL_MS) return
     const id = setInterval(() => setNowTick(Date.now()), 100)
     return () => clearInterval(id)
@@ -348,6 +398,22 @@ export function DuelPrepareView() {
     (serverPastStartGate ||
       (hasLocalStart && prepElapsed >= COUNTDOWN_TOTAL_MS)),
   )
+
+  // Debug: log every render where countdown state changes
+  useEffect(() => {
+    console.log("[COUNTDOWN-DEBUG] render state", {
+      prepOverlayNum,
+      prepCountdownDone,
+      prepElapsed,
+      serverPastStartGate,
+      hasLocalStart,
+      bothReady: duel?.bothReady,
+      duelLiveAt: duel?.duelLiveAt,
+      duelClosedAt: duel?.duelClosedAt,
+      duelStartSignalAt,
+      nowTick,
+    })
+  })
 
   const waitingWsStart =
     duel?.bothReady === true &&

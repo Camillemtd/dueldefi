@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { GainsLivePositionsPanel } from "@/components/gains-live-positions-panel";
 import { GainsPairPicker } from "@/components/gains-pair-picker";
@@ -21,11 +21,39 @@ import {
   gameSubtitle,
   gameTitle,
 } from "@/components/game-ui";
-import type { GainsApiChain, GainsTradingPair } from "@/types/gains-api";
+import { gainsPositionHistorySideKey, type GainsApiChain, type GainsTradingPair } from "@/types/gains-api";
 import type { DuelTradeSideConfig } from "@/types/duel-trade";
 
 const POLL_MS = 1000;
 const COUNTDOWN_TOTAL_MS = 3000;
+
+function useDuelWsCountdown(serverSeconds: number | null, duelTimerEnded: boolean) {
+  const [tick, setTick] = useState<number | null>(null);
+  useEffect(() => {
+    if (duelTimerEnded) {
+      setTick(0);
+      return;
+    }
+    if (serverSeconds === null) {
+      setTick(null);
+      return;
+    }
+    if (Number.isFinite(serverSeconds)) {
+      setTick(Math.max(0, serverSeconds));
+    }
+  }, [serverSeconds, duelTimerEnded]);
+
+  useEffect(() => {
+    if (duelTimerEnded || tick === null || tick <= 0) return;
+    const id = setInterval(() => {
+      setTick((t) => (t != null && t > 0 ? t - 1 : t));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [tick, duelTimerEnded]);
+
+  if (duelTimerEnded) return 0;
+  return tick;
+}
 
 type DuelPayload = {
   id: string;
@@ -82,15 +110,79 @@ export function DuelPrepareView() {
     subscribePositions,
     positions,
     pnlHistoryByKey,
+    myPositions,
+    opponentPositions,
+    pnlHistoryMy,
+    pnlHistoryOpponent,
+    duelRemainingSeconds,
+    duelTimerEnded,
+    takeDuelEndCloseTargets,
     connectionState,
     lastWsError,
     walletAddress: gainsWallet,
   } = useGainsRealtime();
-  const [readyLoading, setReadyLoading] = useState(false);
-  const [readyError, setReadyError] = useState<string | null>(null);
+
+  const [duelAutoCloseBusy, setDuelAutoCloseBusy] = useState(false);
+  const [duelAutoCloseResult, setDuelAutoCloseResult] = useState<string | null>(null);
 
   /** Wallets créés avec mot de passe Dynamic (anciens comptes) : même valeur qu’à l’inscription si tu ne l’as pas changée. */
   const [dynamicWalletPassword, setDynamicWalletPassword] = useState("");
+
+  const duelCountdownDisplay = useDuelWsCountdown(duelRemainingSeconds, duelTimerEnded);
+
+  useEffect(() => {
+    if (!duelTimerEnded) {
+      setDuelAutoCloseBusy(false);
+      setDuelAutoCloseResult(null);
+    }
+  }, [duelTimerEnded]);
+
+  useLayoutEffect(() => {
+    if (!duelTimerEnded) return;
+    const batch = takeDuelEndCloseTargets();
+    if (!batch?.length) return;
+
+    const pwd = dynamicWalletPassword.trim();
+    setDuelAutoCloseBusy(true);
+    setDuelAutoCloseResult(null);
+
+    void (async () => {
+      const errs: string[] = [];
+      for (const pos of batch) {
+        const mark = pos.currentPriceUsdDecimaled;
+        if (typeof mark !== "number" || !Number.isFinite(mark)) continue;
+        try {
+          const r = await fetch("/api/trade/close-market", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              ...(pwd ? { password: pwd } : {}),
+              tradeIndex: pos.index ?? 0,
+              currentPriceUsdDecimaled: mark,
+            }),
+          });
+          const data = (await r.json()) as { error?: string };
+          if (!r.ok) {
+            errs.push(`#${pos.index ?? "?"}: ${data.error ?? "échec"}`);
+          }
+        } catch {
+          errs.push(`#${pos.index ?? "?"}: réseau`);
+        }
+      }
+      setDuelAutoCloseBusy(false);
+      if (errs.length > 0) {
+        setDuelAutoCloseResult(
+          `Fermeture auto partielle ou en erreur — ${errs.join(" · ")}. Tu peux réessayer à la main ou vérifier le mot de passe Dynamic.`,
+        );
+      } else {
+        setDuelAutoCloseResult("Toutes tes positions du duel ont été fermées au marché.");
+      }
+    })();
+  }, [duelTimerEnded, takeDuelEndCloseTargets, dynamicWalletPassword]);
+
+  const [readyLoading, setReadyLoading] = useState(false);
+  const [readyError, setReadyError] = useState<string | null>(null);
 
   const [execLoading, setExecLoading] = useState(false);
   const [execError, setExecError] = useState<string | null>(null);
@@ -390,7 +482,9 @@ export function DuelPrepareView() {
         </p>
       </GameHudBar>
 
-      <main className="mx-auto flex max-w-lg flex-1 flex-col gap-6 px-4 py-10 sm:py-14">
+      <main
+        className={`mx-auto flex flex-1 flex-col gap-6 px-4 py-10 sm:py-14 ${duel.bothReady ? "max-w-6xl" : "max-w-lg"}`}
+      >
         <div className="space-y-3">
           <p className={gameSubtitle}>Trade prep</p>
           <h1 className={`${gameTitle} !text-xl sm:!text-2xl`}>Gains setup</h1>
@@ -437,16 +531,99 @@ export function DuelPrepareView() {
           </div>
         ) : null}
 
-        <GainsLivePositionsPanel
-          positions={positions}
-          pnlHistoryByKey={pnlHistoryByKey}
-          connectionState={connectionState}
-          lastWsError={lastWsError}
-          gainsWallet={gainsWallet}
-          gainsChain={gainsChain}
-          wsDuelId={duelId}
-          walletPassword={dynamicWalletPassword}
-        />
+        {duel.bothReady ? (
+          <div className="space-y-4">
+            <div
+              className={`${gamePanel} ${gamePanelTopAccent} flex flex-wrap items-center justify-between gap-3 p-4`}
+            >
+              <div>
+                <p className={gameLabel}>Temps restant (duel)</p>
+                <p
+                  className={`font-[family-name:var(--font-orbitron)] text-2xl font-black tabular-nums tracking-wider sm:text-3xl ${
+                    duelTimerEnded || duelCountdownDisplay === 0
+                      ? "text-[var(--game-magenta)]"
+                      : "text-[var(--game-cyan)]"
+                  }`}
+                >
+                  {duelCountdownDisplay === null && !duelTimerEnded ? (
+                    <span className="text-[var(--game-text-muted)]">…</span>
+                  ) : duelTimerEnded || duelCountdownDisplay === 0 ? (
+                    "0 s"
+                  ) : (
+                    <>{duelCountdownDisplay} s</>
+                  )}
+                </p>
+              </div>
+              <p className={`${gameMuted} max-w-md text-[11px]`}>
+                Les positions se mettent à jour en direct. Quand le chrono tombe à 0, tes positions sont fermées au marché
+                automatiquement (une transaction par trade). Si ton wallet Dynamic exige un mot de passe, remplis le champ
+                plus haut avant la fin.
+              </p>
+            </div>
+
+            {duelAutoCloseBusy || duelAutoCloseResult ? (
+              <div
+                className={`rounded-sm border px-4 py-3 text-sm ${
+                  duelAutoCloseResult != null &&
+                  (duelAutoCloseResult.includes("partielle") || duelAutoCloseResult.includes("erreur"))
+                    ? "border-[var(--game-danger)]/50 bg-[rgba(255,80,80,0.08)] text-[var(--game-text)]"
+                    : "border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] text-[var(--game-text)]"
+                }`}
+              >
+                {duelAutoCloseBusy ? (
+                  <p className="font-[family-name:var(--font-share-tech)] text-[13px] text-[var(--game-text)]">
+                    Fermeture automatique des positions au marché (une transaction par trade)…
+                  </p>
+                ) : duelAutoCloseResult ? (
+                  <p className="font-[family-name:var(--font-share-tech)] text-[13px]">{duelAutoCloseResult}</p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <GainsLivePositionsPanel
+                panelTitle="Adversaire (live)"
+                positionCardLabel="Position adverse"
+                readOnly
+                showConnectionMeta={false}
+                positions={opponentPositions}
+                pnlHistoryByKey={pnlHistoryOpponent}
+                historyKeyForPosition={(p) => gainsPositionHistorySideKey("opponent", p)}
+                connectionState={connectionState}
+                lastWsError={lastWsError}
+                gainsWallet={gainsWallet}
+                gainsChain={gainsChain}
+                wsDuelId={duelId}
+                duelEnded={duelTimerEnded}
+              />
+              <GainsLivePositionsPanel
+                panelTitle="Mes positions (live)"
+                showConnectionMeta
+                positions={myPositions}
+                pnlHistoryByKey={pnlHistoryMy}
+                historyKeyForPosition={(p) => gainsPositionHistorySideKey("my", p)}
+                connectionState={connectionState}
+                lastWsError={lastWsError}
+                gainsWallet={gainsWallet}
+                gainsChain={gainsChain}
+                wsDuelId={duelId}
+                walletPassword={dynamicWalletPassword}
+                duelEnded={duelTimerEnded}
+              />
+            </div>
+          </div>
+        ) : (
+          <GainsLivePositionsPanel
+            positions={positions}
+            pnlHistoryByKey={pnlHistoryByKey}
+            connectionState={connectionState}
+            lastWsError={lastWsError}
+            gainsWallet={gainsWallet}
+            gainsChain={gainsChain}
+            wsDuelId={duelId}
+            walletPassword={dynamicWalletPassword}
+          />
+        )}
 
         {!duel.myReady ? (
           <div className={`${gamePanel} space-y-4 p-6`}>

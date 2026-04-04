@@ -11,9 +11,12 @@ import {
 } from "react";
 
 import {
+  gainsPositionHistorySideKey,
   gainsPositionStreamKey,
+  type GainsDuelPositionsSnapshot,
   type GainsPositionPnlTick,
   type GainsPositionUpdate,
+  isGainsDuelPositionsSnapshot,
 } from "@/types/gains-api";
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error";
@@ -23,13 +26,14 @@ const PNL_HISTORY_MAX = 90;
 function mergePnlHistory(
   prev: Map<string, GainsPositionPnlTick[]>,
   incoming: GainsPositionUpdate[],
+  keyFn: (p: GainsPositionUpdate) => string,
   now: number,
 ): Map<string, GainsPositionPnlTick[]> {
   const next = new Map(prev);
   const activeKeys = new Set<string>();
 
   for (const pos of incoming) {
-    const key = gainsPositionStreamKey(pos);
+    const key = keyFn(pos);
     activeKeys.add(key);
     const old = next.get(key) ?? [];
     const merged = [...old, { t: now, pnl: pos.pnl }];
@@ -51,9 +55,22 @@ type GainsRealtimeContextValue = {
   walletAddress: string | null;
   connectionState: ConnectionState;
   lastWsError: string | null;
+  /** @deprecated Utiliser myPositions — conservé pour compat ( = mes positions ). */
   positions: GainsPositionUpdate[];
-  /** Historique PnL par position (clé stable) — mis à jour dans le handler WebSocket. */
   pnlHistoryByKey: ReadonlyMap<string, GainsPositionPnlTick[]>;
+  myPositions: GainsPositionUpdate[];
+  opponentPositions: GainsPositionUpdate[];
+  pnlHistoryMy: ReadonlyMap<string, GainsPositionPnlTick[]>;
+  pnlHistoryOpponent: ReadonlyMap<string, GainsPositionPnlTick[]>;
+  /** Dernier `remainingSeconds` reçu du serveur (synchro UI + décompte local possible). */
+  duelRemainingSeconds: number | null;
+  /** `true` si le dernier snapshot avait `remainingSeconds <= 0` (fin du duel côté serveur). */
+  duelTimerEnded: boolean;
+  /**
+   * À appeler une fois quand `duelTimerEnded` passe à true : renvoie une copie des **mes** positions
+   * issues du dernier message à **1 s** restantes (souvent le dernier avec prix/index utiles), sinon du tick 0.
+   */
+  takeDuelEndCloseTargets: () => GainsPositionUpdate[] | null;
   subscribePositions: (duelId: string) => void;
   unsubscribePositions: () => void;
 };
@@ -64,6 +81,13 @@ const defaultValue: GainsRealtimeContextValue = {
   lastWsError: null,
   positions: [],
   pnlHistoryByKey: new Map(),
+  myPositions: [],
+  opponentPositions: [],
+  pnlHistoryMy: new Map(),
+  pnlHistoryOpponent: new Map(),
+  duelRemainingSeconds: null,
+  duelTimerEnded: false,
+  takeDuelEndCloseTargets: () => null,
   subscribePositions: () => {},
   unsubscribePositions: () => {},
 };
@@ -77,6 +101,10 @@ function wsUrlFromEnv(): string | null {
   return u || null;
 }
 
+function normAddr(a: string): string {
+  return a.trim().toLowerCase();
+}
+
 export function useGainsRealtime() {
   return useContext(GainsRealtimeContext);
 }
@@ -85,16 +113,117 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
   const [lastWsError, setLastWsError] = useState<string | null>(null);
-  const [positions, setPositions] = useState<GainsPositionUpdate[]>([]);
-  const [pnlHistoryByKey, setPnlHistoryByKey] = useState(
+  const [myPositions, setMyPositions] = useState<GainsPositionUpdate[]>([]);
+  const [opponentPositions, setOpponentPositions] = useState<GainsPositionUpdate[]>([]);
+  const [pnlHistoryMy, setPnlHistoryMy] = useState(() => new Map<string, GainsPositionPnlTick[]>());
+  const [pnlHistoryOpponent, setPnlHistoryOpponent] = useState(
+    () => new Map<string, GainsPositionPnlTick[]>(),
+  );
+  const [duelRemainingSeconds, setDuelRemainingSeconds] = useState<number | null>(null);
+  const [duelTimerEnded, setDuelTimerEnded] = useState(false);
+
+  /** Legacy : même référence que mes positions pour l’historique combiné affiché ailleurs. */
+  const [legacyPnlHistoryByKey, setLegacyPnlHistoryByKey] = useState(
     () => new Map<string, GainsPositionPnlTick[]>(),
   );
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
   const intentionalUnmountRef = useRef(false);
-  /** Dernier duel souscrit (pour unsubscribe / cleanup alignés sur le serveur). */
   const subscribedDuelIdRef = useRef<string | null>(null);
+  /** Mes positions au tick « fin de duel » — consommées par `takeDuelEndCloseTargets`. */
+  const duelEndCloseTargetsRef = useRef<GainsPositionUpdate[] | null>(null);
+  /**
+   * Dernier snapshot à remainingSeconds === 1 : le serveur n’envoie souvent plus les positions au tick 0,
+   * on garde celles du message « 1 s » pour close-market.
+   */
+  const duelCloseTargetsAtOneSecondRef = useRef<GainsPositionUpdate[] | null>(null);
+
+  const takeDuelEndCloseTargets = useCallback((): GainsPositionUpdate[] | null => {
+    const v = duelEndCloseTargetsRef.current;
+    duelEndCloseTargetsRef.current = null;
+    return v;
+  }, []);
+
+  const resetPositionState = useCallback(() => {
+    duelEndCloseTargetsRef.current = null;
+    duelCloseTargetsAtOneSecondRef.current = null;
+    setMyPositions([]);
+    setOpponentPositions([]);
+    setPnlHistoryMy(new Map());
+    setPnlHistoryOpponent(new Map());
+    setLegacyPnlHistoryByKey(new Map());
+    setDuelRemainingSeconds(null);
+    setDuelTimerEnded(false);
+  }, []);
+
+  const applyDuelSnapshot = useCallback(
+    (snap: GainsDuelPositionsSnapshot, sessionWallet: string) => {
+      const me = normAddr(sessionWallet);
+      const mine: GainsPositionUpdate[] = [];
+      const theirs: GainsPositionUpdate[] = [];
+
+      for (const u of snap.users) {
+        const w = normAddr(u.wallet);
+        if (w === me) {
+          mine.push(...u.positions);
+        } else {
+          theirs.push(...u.positions);
+        }
+      }
+
+      const now = Date.now();
+      const ended = snap.remainingSeconds <= 0;
+
+      setDuelRemainingSeconds(snap.remainingSeconds);
+      setDuelTimerEnded(ended);
+
+      if (!ended && snap.remainingSeconds === 1) {
+        duelCloseTargetsAtOneSecondRef.current = mine.length > 0 ? [...mine] : null;
+      }
+
+      if (ended) {
+        const fromOneSecond = duelCloseTargetsAtOneSecondRef.current;
+        duelCloseTargetsAtOneSecondRef.current = null;
+        duelEndCloseTargetsRef.current =
+          fromOneSecond && fromOneSecond.length > 0
+            ? [...fromOneSecond]
+            : mine.length > 0
+              ? [...mine]
+              : null;
+        setMyPositions([]);
+        setOpponentPositions([]);
+        setPnlHistoryMy(new Map());
+        setPnlHistoryOpponent(new Map());
+        setLegacyPnlHistoryByKey(new Map());
+        return;
+      }
+
+      setMyPositions(mine);
+      setOpponentPositions(theirs);
+      setPnlHistoryMy((prev) =>
+        mergePnlHistory(prev, mine, (p) => gainsPositionHistorySideKey("my", p), now),
+      );
+      setPnlHistoryOpponent((prev) =>
+        mergePnlHistory(prev, theirs, (p) => gainsPositionHistorySideKey("opponent", p), now),
+      );
+      setLegacyPnlHistoryByKey((prev) => mergePnlHistory(prev, mine, gainsPositionStreamKey, now));
+    },
+    [],
+  );
+
+  const applyLegacyPositionsArray = useCallback((batch: GainsPositionUpdate[]) => {
+    const now = Date.now();
+    setMyPositions(batch);
+    setOpponentPositions([]);
+    setDuelRemainingSeconds(null);
+    setDuelTimerEnded(false);
+    setPnlHistoryMy((prev) =>
+      mergePnlHistory(prev, batch, (p) => gainsPositionHistorySideKey("my", p), now),
+    );
+    setPnlHistoryOpponent(new Map());
+    setLegacyPnlHistoryByKey((prev) => mergePnlHistory(prev, batch, gainsPositionStreamKey, now));
+  }, []);
 
   useEffect(() => {
     console.log(LOG, "session: fetching /api/auth/me (duel layout mounted)");
@@ -166,34 +295,52 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
         const raw = String(ev.data);
         console.log(LOG, "socket: onmessage raw", raw.slice(0, 500) + (raw.length > 500 ? "…" : ""));
         try {
-          const msg = JSON.parse(raw) as {
-            event?: string;
-            data?: unknown;
-          };
-          console.log(LOG, "socket: onmessage parsed", { event: msg.event, data: msg.data });
-          if (msg.event === "positions" && Array.isArray(msg.data)) {
-            const batch = msg.data as GainsPositionUpdate[];
-            const now = Date.now();
-            setPositions(batch);
-            setPnlHistoryByKey((prev) => mergePnlHistory(prev, batch, now));
+          const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+          if (isGainsDuelPositionsSnapshot(parsed)) {
+            console.log(LOG, "socket: duel snapshot (root)", {
+              remainingSeconds: parsed.remainingSeconds,
+              users: parsed.users.length,
+            });
+            applyDuelSnapshot(parsed, walletAddress);
             return;
           }
-          if (msg.event === "error") {
-            setLastWsError(
-              typeof msg.data === "string" ? msg.data : "WebSocket positions error.",
-            );
+
+          const event = typeof parsed.event === "string" ? parsed.event : undefined;
+          const data = parsed.data;
+
+          console.log(LOG, "socket: onmessage parsed", { event, hasData: data !== undefined });
+
+          // Serveur : `event: "duel"` ou `event: "positions"` + même forme `data`.
+          if (event === "positions" || event === "duel") {
+            if (isGainsDuelPositionsSnapshot(data)) {
+              console.log(LOG, "socket: duel snapshot (wrapped)", {
+                event,
+                remainingSeconds: data.remainingSeconds,
+                users: data.users.length,
+              });
+              applyDuelSnapshot(data, walletAddress);
+              return;
+            }
+            if (event === "positions" && Array.isArray(data)) {
+              const batch = data as GainsPositionUpdate[];
+              applyLegacyPositionsArray(batch);
+              return;
+            }
+          }
+
+          if (event === "error") {
+            setLastWsError(typeof data === "string" ? data : "WebSocket positions error.");
             return;
           }
-          if (msg.event === "expired") {
-            setLastWsError(
-              typeof msg.data === "string" ? msg.data : "Subscription expired.",
-            );
+          if (event === "expired") {
+            setLastWsError(typeof data === "string" ? data : "Subscription expired.");
             intentionalUnmountRef.current = true;
             console.log(LOG, "socket: expired from server, closing");
             ws.close();
           }
         } catch (e) {
-          console.warn(LOG, "socket: onmessage JSON parse error", e);
+          console.warn(LOG, "onmessage JSON parse error", e);
         }
       };
 
@@ -252,7 +399,7 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
       }
       subscribedDuelIdRef.current = null;
     };
-  }, [walletAddress]);
+  }, [walletAddress, applyDuelSnapshot, applyLegacyPositionsArray]);
 
   const subscribePositions = useCallback(
     (duelId: string) => {
@@ -280,8 +427,7 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
       };
       subscribedDuelIdRef.current = id;
       console.log(LOG, "subscribe: sending", payload);
-      setPositions([]);
-      setPnlHistoryByKey(new Map());
+      resetPositionState();
       try {
         ws.send(JSON.stringify(payload));
       } catch (e) {
@@ -289,7 +435,7 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
         setLastWsError("Failed to send subscribe.");
       }
     },
-    [walletAddress],
+    [walletAddress, resetPositionState],
   );
 
   const unsubscribePositions = useCallback(() => {
@@ -309,17 +455,23 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
       console.warn(LOG, "unsubscribe: send failed", e);
     }
     subscribedDuelIdRef.current = null;
-    setPositions([]);
-    setPnlHistoryByKey(new Map());
-  }, []);
+    resetPositionState();
+  }, [resetPositionState]);
 
   const value = useMemo<GainsRealtimeContextValue>(
     () => ({
       walletAddress,
       connectionState,
       lastWsError,
-      positions,
-      pnlHistoryByKey,
+      positions: myPositions,
+      pnlHistoryByKey: legacyPnlHistoryByKey,
+      myPositions,
+      opponentPositions,
+      pnlHistoryMy,
+      pnlHistoryOpponent,
+      duelRemainingSeconds,
+      duelTimerEnded,
+      takeDuelEndCloseTargets,
       subscribePositions,
       unsubscribePositions,
     }),
@@ -327,8 +479,14 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
       walletAddress,
       connectionState,
       lastWsError,
-      positions,
-      pnlHistoryByKey,
+      myPositions,
+      opponentPositions,
+      legacyPnlHistoryByKey,
+      pnlHistoryMy,
+      pnlHistoryOpponent,
+      duelRemainingSeconds,
+      duelTimerEnded,
+      takeDuelEndCloseTargets,
       subscribePositions,
       unsubscribePositions,
     ],

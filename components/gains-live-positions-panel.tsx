@@ -131,9 +131,19 @@ type CardProps = {
   onCloseMarket: () => void;
   closing: boolean;
   canClose: boolean;
+  readOnly?: boolean;
+  cardLabel?: string;
 };
 
-function PositionCard({ pos, history, onCloseMarket, closing, canClose }: CardProps) {
+function PositionCard({
+  pos,
+  history,
+  onCloseMarket,
+  closing,
+  canClose,
+  readOnly = false,
+  cardLabel = "Live position",
+}: CardProps) {
   const rawId = useId();
   const gradientId = `pnl-grad-${rawId.replace(/:/g, "")}`;
   const long = isLong(pos);
@@ -159,7 +169,7 @@ function PositionCard({ pos, history, onCloseMarket, closing, canClose }: CardPr
       <div className="relative flex flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <p className={`${gameLabel} !tracking-[0.18em]`}>Live position</p>
+            <p className={`${gameLabel} !tracking-[0.18em]`}>{cardLabel}</p>
             <h3 className="font-[family-name:var(--font-orbitron)] text-base font-bold tracking-wide text-[var(--game-text)] sm:text-lg">
               {pairLabel}
             </h3>
@@ -232,31 +242,33 @@ function PositionCard({ pos, history, onCloseMarket, closing, canClose }: CardPr
           <PnlSparkline points={history} positive={pnlPositive} gradientId={gradientId} />
         </div>
 
-        <div className="border-t border-[var(--game-cyan-dim)]/30 pt-3">
-          <p className={`${gameMuted} mb-2 text-[11px]`}>
-            <code className="text-[var(--game-cyan)]">closeTradeMarket</code>(tradeIndex, expectedPrice) — index{" "}
-            <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
-              {pos.index ?? 0}
-            </span>
-            , prix mark{" "}
-            {currentPx != null ? (
+        {readOnly ? null : (
+          <div className="border-t border-[var(--game-cyan-dim)]/30 pt-3">
+            <p className={`${gameMuted} mb-2 text-[11px]`}>
+              <code className="text-[var(--game-cyan)]">closeTradeMarket</code>(tradeIndex, expectedPrice) — index{" "}
               <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
-                ${fmtUsd(currentPx, 2)}
+                {pos.index ?? 0}
               </span>
-            ) : (
-              "—"
-            )}{" "}
-            → uint64 1e10
-          </p>
-          <button
-            type="button"
-            disabled={!canClose || closing}
-            onClick={onCloseMarket}
-            className={`${gameBtnDanger} py-2 text-xs`}
-          >
-            {closing ? "Closing…" : "Close market"}
-          </button>
-        </div>
+              , prix mark{" "}
+              {currentPx != null ? (
+                <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
+                  ${fmtUsd(currentPx, 2)}
+                </span>
+              ) : (
+                "—"
+              )}{" "}
+              → uint64 1e10
+            </p>
+            <button
+              type="button"
+              disabled={!canClose || closing}
+              onClick={onCloseMarket}
+              className={`${gameBtnDanger} py-2 text-xs`}
+            >
+              {closing ? "Closing…" : "Close market"}
+            </button>
+          </div>
+        )}
       </div>
     </article>
   );
@@ -273,6 +285,18 @@ export type GainsLivePositionsPanelProps = {
   wsDuelId?: string;
   /** Pour fermeture on-chain si le backup Dynamic est chiffré (wallet ancien). */
   walletPassword?: string;
+  /** Titre de la carte (colonne adversaire / moi). */
+  panelTitle?: string;
+  /** Masque fermeture marché et aide close (positions adversaire). */
+  readOnly?: boolean;
+  /** Clé dans `pnlHistoryByKey` (doit correspondre au contexte duel). */
+  historyKeyForPosition?: (pos: GainsPositionUpdate) => string;
+  /** Libellé sous-titre de chaque carte position. */
+  positionCardLabel?: string;
+  /** Fin du timer duel : message + pas d’actions close. */
+  duelEnded?: boolean;
+  /** Afficher la ligne socket / wallet (désactiver sur la 2ᵉ colonne si doublon). */
+  showConnectionMeta?: boolean;
 };
 
 export function GainsLivePositionsPanel({
@@ -284,6 +308,12 @@ export function GainsLivePositionsPanel({
   gainsChain,
   wsDuelId = "",
   walletPassword = "",
+  panelTitle = "Gains positions (WebSocket)",
+  readOnly = false,
+  historyKeyForPosition = gainsPositionStreamKey,
+  positionCardLabel,
+  duelEnded = false,
+  showConnectionMeta = true,
 }: GainsLivePositionsPanelProps) {
   const [localClosePassword, setLocalClosePassword] = useState("");
   const [closingKey, setClosingKey] = useState<string | null>(null);
@@ -294,7 +324,7 @@ export function GainsLivePositionsPanel({
 
   const closePosition = useCallback(
     async (pos: GainsPositionUpdate) => {
-      const key = gainsPositionStreamKey(pos);
+      const key = historyKeyForPosition(pos);
       const mark =
         typeof pos.currentPriceUsdDecimaled === "number" &&
         Number.isFinite(pos.currentPriceUsdDecimaled)
@@ -330,19 +360,19 @@ export function GainsLivePositionsPanel({
         setClosingKey(null);
       }
     },
-    [signingPassword],
+    [signingPassword, historyKeyForPosition],
   );
 
   const cards = useMemo(() => {
     return positions.map((pos) => {
-      const key = gainsPositionStreamKey(pos);
+      const key = historyKeyForPosition(pos);
       return {
         pos,
         key,
         history: pnlHistoryByKey.get(key) ?? [],
       };
     });
-  }, [positions, pnlHistoryByKey]);
+  }, [positions, pnlHistoryByKey, historyKeyForPosition]);
 
   const markReady = (p: GainsPositionUpdate) =>
     typeof p.currentPriceUsdDecimaled === "number" && Number.isFinite(p.currentPriceUsdDecimaled);
@@ -350,17 +380,24 @@ export function GainsLivePositionsPanel({
   return (
     <div className={`${gamePanel} ${gamePanelTopAccent} relative space-y-4 p-4 text-xs`}>
       <div className="space-y-1">
-        <p className={gameLabel}>Gains positions (WebSocket)</p>
-        <p className={gameMuted}>
-          Socket: {connectionState}
-          {gainsWallet ? (
-            <span className="text-[var(--game-text-muted)]"> · {gainsWallet.slice(0, 6)}…</span>
-          ) : (
-            <span className="text-[var(--game-amber)]"> · no wallet on session</span>
-          )}
-        </p>
+        <p className={gameLabel}>{panelTitle}</p>
+        {showConnectionMeta ? (
+          <p className={gameMuted}>
+            Socket: {connectionState}
+            {gainsWallet ? (
+              <span className="text-[var(--game-text-muted)]"> · {gainsWallet.slice(0, 6)}…</span>
+            ) : (
+              <span className="text-[var(--game-amber)]"> · no wallet on session</span>
+            )}
+          </p>
+        ) : null}
       </div>
-      {connectionState === "idle" && gainsWallet ? (
+      {duelEnded ? (
+        <p className="rounded-sm border border-[var(--game-magenta)]/40 bg-[rgba(255,61,154,0.08)] px-3 py-2 font-[family-name:var(--font-share-tech)] text-[11px] text-[var(--game-text)]">
+          Fin du chrono : les positions de ce duel sont considérées comme fermées côté serveur.
+        </p>
+      ) : null}
+      {connectionState === "idle" && gainsWallet && showConnectionMeta ? (
         <p className={gameMuted}>
           Set <code className="text-[var(--game-cyan)]">NEXT_PUBLIC_DUEL_DEFI_WS_URL</code> (e.g.{" "}
           <code className="break-all text-[10px] text-[var(--game-text-muted)]">
@@ -371,7 +408,7 @@ export function GainsLivePositionsPanel({
       ) : null}
       {lastWsError ? <p className="text-sm text-[var(--game-danger)]">{lastWsError}</p> : null}
 
-      {positions.length > 0 && !walletPassword.trim() ? (
+      {positions.length > 0 && !readOnly && !walletPassword.trim() ? (
         <div className="space-y-2 rounded-sm border border-[var(--game-amber)]/35 bg-[rgba(255,200,74,0.06)] px-3 py-2">
           <p className={`${gameMuted} text-[11px]`}>
             Si la fermeture échoue (déchiffrement Dynamic), saisis le mot de passe wallet une fois ici ou dans le
@@ -391,7 +428,7 @@ export function GainsLivePositionsPanel({
         </div>
       ) : null}
 
-      {positions.length > 0 ? (
+      {positions.length > 0 && !readOnly ? (
         <>
           {closeErr ? <p className="text-sm text-[var(--game-danger)]">{closeErr}</p> : null}
           {closeTx ? (
@@ -412,26 +449,34 @@ export function GainsLivePositionsPanel({
                 onCloseMarket={() => void closePosition(pos)}
                 closing={closingKey === key}
                 canClose={markReady(pos)}
+                readOnly={readOnly || duelEnded}
+                cardLabel={positionCardLabel ?? "Live position"}
               />
             </li>
           ))}
         </ul>
       ) : connectionState === "open" ? (
         <p className={gameMuted}>
-          Waiting for position ticks
-          {wsDuelId.trim() ? (
-            <>
-              {" "}
-              (<code className="text-[var(--game-cyan)]">subscribe</code> duel{" "}
-              <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
-                {wsDuelId.slice(0, 8)}…
-              </span>
-              )
-            </>
+          {duelEnded ? (
+            <>Aucune position affichée (duel terminé).</>
           ) : (
-            <> ({gainsChain})</>
+            <>
+              Waiting for position ticks
+              {wsDuelId.trim() ? (
+                <>
+                  {" "}
+                  (<code className="text-[var(--game-cyan)]">subscribe</code> duel{" "}
+                  <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
+                    {wsDuelId.slice(0, 8)}…
+                  </span>
+                  )
+                </>
+              ) : (
+                <> ({gainsChain})</>
+              )}
+              …
+            </>
           )}
-          …
         </p>
       ) : null}
     </div>

@@ -10,15 +10,51 @@ import {
   useState,
 } from "react";
 
-import type { GainsApiChain, GainsPositionUpdate } from "@/types/gains-api";
+import {
+  gainsPositionStreamKey,
+  type GainsApiChain,
+  type GainsPositionPnlTick,
+  type GainsPositionUpdate,
+} from "@/types/gains-api";
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error";
+
+const PNL_HISTORY_MAX = 90;
+
+function mergePnlHistory(
+  prev: Map<string, GainsPositionPnlTick[]>,
+  incoming: GainsPositionUpdate[],
+  now: number,
+): Map<string, GainsPositionPnlTick[]> {
+  const next = new Map(prev);
+  const activeKeys = new Set<string>();
+
+  for (const pos of incoming) {
+    const key = gainsPositionStreamKey(pos);
+    activeKeys.add(key);
+    const old = next.get(key) ?? [];
+    const merged = [...old, { t: now, pnl: pos.pnl }];
+    const trimmed =
+      merged.length > PNL_HISTORY_MAX ? merged.slice(merged.length - PNL_HISTORY_MAX) : merged;
+    next.set(key, trimmed);
+  }
+
+  for (const k of next.keys()) {
+    if (!activeKeys.has(k)) {
+      next.delete(k);
+    }
+  }
+
+  return next;
+}
 
 type GainsRealtimeContextValue = {
   walletAddress: string | null;
   connectionState: ConnectionState;
   lastWsError: string | null;
   positions: GainsPositionUpdate[];
+  /** Historique PnL par position (clé stable) — mis à jour dans le handler WebSocket. */
+  pnlHistoryByKey: ReadonlyMap<string, GainsPositionPnlTick[]>;
   subscribePositions: (chain: GainsApiChain) => void;
   unsubscribePositions: () => void;
 };
@@ -28,6 +64,7 @@ const defaultValue: GainsRealtimeContextValue = {
   connectionState: "idle",
   lastWsError: null,
   positions: [],
+  pnlHistoryByKey: new Map(),
   subscribePositions: () => {},
   unsubscribePositions: () => {},
 };
@@ -50,6 +87,9 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
   const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
   const [lastWsError, setLastWsError] = useState<string | null>(null);
   const [positions, setPositions] = useState<GainsPositionUpdate[]>([]);
+  const [pnlHistoryByKey, setPnlHistoryByKey] = useState(
+    () => new Map<string, GainsPositionPnlTick[]>(),
+  );
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
@@ -131,7 +171,10 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
           };
           console.log(LOG, "socket: onmessage parsed", { event: msg.event, data: msg.data });
           if (msg.event === "positions" && Array.isArray(msg.data)) {
-            setPositions(msg.data as GainsPositionUpdate[]);
+            const batch = msg.data as GainsPositionUpdate[];
+            const now = Date.now();
+            setPositions(batch);
+            setPnlHistoryByKey((prev) => mergePnlHistory(prev, batch, now));
             return;
           }
           if (msg.event === "error") {
@@ -227,6 +270,7 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
       };
       console.log(LOG, "subscribe: sending", payload);
       setPositions([]);
+      setPnlHistoryByKey(new Map());
       try {
         ws.send(JSON.stringify(payload));
       } catch (e) {
@@ -251,6 +295,7 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
       console.warn(LOG, "unsubscribe: send failed", e);
     }
     setPositions([]);
+    setPnlHistoryByKey(new Map());
   }, []);
 
   const value = useMemo<GainsRealtimeContextValue>(
@@ -259,6 +304,7 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
       connectionState,
       lastWsError,
       positions,
+      pnlHistoryByKey,
       subscribePositions,
       unsubscribePositions,
     }),
@@ -267,6 +313,7 @@ export function GainsRealtimeProvider({ children }: { children: React.ReactNode 
       connectionState,
       lastWsError,
       positions,
+      pnlHistoryByKey,
       subscribePositions,
       unsubscribePositions,
     ],

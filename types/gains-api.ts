@@ -15,11 +15,30 @@ export type GainsTradingPair = {
   logo: string;
 };
 
+/** Snapshot position — champs optionnels selon la version du serveur WebSocket. */
 export type GainsPositionUpdate = {
   pairIndex: number;
   leverage: number;
-  long: boolean;
+  /** Ancien schéma */
+  long?: boolean;
+  /** Schéma Duel DeFi WS (alias de `long`) */
+  isLong?: boolean;
   openPrice: number;
   pnl: number;
-  liquidationPrice: number;
+  liquidationPrice?: number;
+  liqUsdDecimaled?: number;
+  pair?: string;
+  tradeType?: number;
+  percentChange?: number;
+  index?: number;
+  currentPriceUsdDecimaled?: number;
+  collateral?: number;
+  chain?: GainsApiChain | string;
 };
+
+/** Point PnL horodaté (historique WebSocket pour graphiques). */
+export type GainsPositionPnlTick = { t: number; pnl: number };
+
+export function gainsPositionStreamKey(p: GainsPositionUpdate): string {
+  return `${p.pairIndex}-${p.index ?? 0}-${p.tradeType ?? 0}`;
+}

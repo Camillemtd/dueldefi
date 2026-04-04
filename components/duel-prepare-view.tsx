@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { GainsLivePositionsPanel } from "@/components/gains-live-positions-panel";
 import { GainsPairPicker } from "@/components/gains-pair-picker";
 import { useGainsRealtime } from "@/components/gains-realtime-context";
 import {
@@ -80,6 +81,7 @@ export function DuelPrepareView() {
   const {
     subscribePositions,
     positions,
+    pnlHistoryByKey,
     connectionState,
     lastWsError,
     walletAddress: gainsWallet,
@@ -418,41 +420,14 @@ export function DuelPrepareView() {
           </p>
         </div>
 
-        <div className={`${gamePanel} space-y-2 p-4 text-xs`}>
-          <p className={gameLabel}>Gains positions (WebSocket)</p>
-          <p className={gameMuted}>
-            Socket: {connectionState}
-            {gainsWallet ? (
-              <span className="text-[var(--game-text-muted)]"> · {gainsWallet.slice(0, 6)}…</span>
-            ) : (
-              <span className="text-[var(--game-amber)]"> · no wallet on session</span>
-            )}
-          </p>
-          {connectionState === "idle" && gainsWallet ? (
-            <p className={gameMuted}>
-              Set <code className="text-[var(--game-cyan)]">NEXT_PUBLIC_DUEL_DEFI_WS_URL</code> (e.g.{" "}
-              <code className="break-all text-[10px] text-[var(--game-text-muted)]">
-                ws://46.202.173.162:3001/ws/positions
-              </code>
-              ) to stream live positions.
-            </p>
-          ) : null}
-          {lastWsError ? (
-            <p className="text-[var(--game-danger)]">{lastWsError}</p>
-          ) : null}
-          {positions.length > 0 ? (
-            <ul className="max-h-36 space-y-1 overflow-y-auto font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
-              {positions.map((pos, i) => (
-                <li key={`${pos.pairIndex}-${i}`} className="border-b border-[var(--game-cyan-dim)]/40 py-1">
-                  Pair {pos.pairIndex} · {pos.long ? "long" : "short"} · {pos.leverage}× · entry{" "}
-                  {pos.openPrice} · PnL {pos.pnl} · liq {pos.liquidationPrice}
-                </li>
-              ))}
-            </ul>
-          ) : connectionState === "open" ? (
-            <p className={gameMuted}>Waiting for position ticks (subscribe sent for {gainsChain})…</p>
-          ) : null}
-        </div>
+        <GainsLivePositionsPanel
+          positions={positions}
+          pnlHistoryByKey={pnlHistoryByKey}
+          connectionState={connectionState}
+          lastWsError={lastWsError}
+          gainsWallet={gainsWallet}
+          gainsChain={gainsChain}
+        />
 
         {!duel.myReady ? (
           <div className={`${gamePanel} space-y-4 p-6`}>

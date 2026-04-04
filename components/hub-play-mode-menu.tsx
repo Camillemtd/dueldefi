@@ -9,7 +9,7 @@ export function HubPlayModeMenu() {
 
   return (
     <div className="space-y-3">
-      <p className={gameLabel}>Réseau hub</p>
+      <p className={gameLabel}>Hub network</p>
       <div className={gameTabRow}>
         <button
           type="button"
@@ -28,9 +28,9 @@ export function HubPlayModeMenu() {
       </div>
       <p className={`${gameMuted} text-xs`}>
         {playMode === "friendly" ? (
-          <>Testnet (ex. Arbitrum Sepolia) — solde faucet / paires démo.</>
+          <>Testnet (e.g. Arbitrum Sepolia) — faucet balance / demo pairs.</>
         ) : (
-          <>Arbitrum One — soldes réels, duels créés sur mainnet.</>
+          <>Arbitrum One — real balances, duels created on mainnet.</>
         )}
       </p>
     </div>

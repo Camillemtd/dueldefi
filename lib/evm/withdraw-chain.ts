@@ -17,11 +17,11 @@ export type ResolveWithdrawChainResult =
 export function resolveChainForWithdraw(chainIdRaw: string): ResolveWithdrawChainResult {
   const numeric = extractNumericChainId(chainIdRaw);
   if (numeric == null) {
-    return { ok: false, error: "Identifiant de chaîne invalide." };
+    return { ok: false, error: "Invalid chain id." };
   }
   const id = Number(numeric);
   if (!Number.isInteger(id) || id <= 0) {
-    return { ok: false, error: "Identifiant de chaîne invalide." };
+    return { ok: false, error: "Invalid chain id." };
   }
 
   if (isFaucetChainConfigured()) {
@@ -69,6 +69,6 @@ export function resolveChainForWithdraw(chainIdRaw: string): ResolveWithdrawChai
 
   return {
     ok: false,
-    error: `Aucun RPC serveur pour la chaîne ${numeric}. Configure FAUCET_* (testnet), ARBITRUM_RPC_URL, BASE_RPC_URL ou ETHEREUM_RPC_URL.`,
+    error: `No server RPC configured for chain ${numeric}. Set FAUCET_* (testnet), ARBITRUM_RPC_URL, BASE_RPC_URL, or ETHEREUM_RPC_URL.`,
   };
 }

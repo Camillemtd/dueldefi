@@ -190,18 +190,18 @@ export async function dynamicSignAndSendUniswapTx(params: {
   const { chain } = params
   if (Number(params.tx.chainId) !== chain.id) {
     throw new Error(
-      `La transaction Uniswap cible la chaîne ${params.tx.chainId} ; le client RPC fourni est ${chain.id}.`,
+      `Uniswap transaction targets chain ${params.tx.chainId}; RPC client is for chain ${chain.id}.`,
     )
   }
   if (getAddress(params.tx.from) !== params.walletAddress) {
     throw new Error(
-      'Le champ "from" de la transaction ne correspond pas au wallet.',
+      'Transaction "from" field does not match the wallet.',
     )
   }
 
   const data = params.tx.data as Hex
   if (!data || data === "0x") {
-    throw new Error("Transaction invalide : champ data vide.")
+    throw new Error("Invalid transaction: empty data field.")
   }
 
   const to = getAddress(params.tx.to as Address)

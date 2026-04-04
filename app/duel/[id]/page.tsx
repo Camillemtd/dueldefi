@@ -106,22 +106,22 @@ export default async function DuelLobbyPage({ params }: Props) {
           }`}
         >
           <p className="font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-[0.2em]">
-            {duelPlayMode === "duel" ? "Mode duel" : "Mode friendly"}
+            {duelPlayMode === "duel" ? "Duel mode" : "Friendly mode"}
           </p>
           <p className="mt-1 font-[family-name:var(--font-share-tech)] leading-relaxed">
             {duelPlayMode === "duel" ? (
               <>
-                Mainnet (Arbitrum / Base) — chaînes choisies à la préparation : hôte{" "}
+                Mainnet (Arbitrum / Base) — chains chosen at prep: host{" "}
                 <span className="text-[var(--game-cyan)]">{cCh ?? "—"}</span>
                 {" · "}
-                invité : <span className="text-[var(--game-cyan)]">{oCh ?? "—"}</span>
+                guest: <span className="text-[var(--game-cyan)]">{oCh ?? "—"}</span>
               </>
             ) : (
               <>
-                Testnet (faucet) — hôte :{" "}
+                Testnet (faucet) — host:{" "}
                 <span className="text-[var(--game-cyan)]">{cCh ?? "Testnet"}</span>
                 {" · "}
-                invité :{" "}
+                guest:{" "}
                 <span className="text-[var(--game-cyan)]">{oCh ?? "Testnet"}</span>
               </>
             )}

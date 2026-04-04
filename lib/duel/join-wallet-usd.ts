@@ -21,7 +21,7 @@ export async function assertWalletUsdCoversStake(
     return {
       ok: false,
       totalUsd: null,
-      error: "Mise du duel invalide en base.",
+      error: "Invalid duel stake in database.",
       httpStatus: 500,
     };
   }
@@ -33,7 +33,7 @@ export async function assertWalletUsdCoversStake(
       return {
         ok: false,
         totalUsd: null,
-        error: "Réponse portfolio sans total USD.",
+        error: "Portfolio response missing USD total.",
         httpStatus: 502,
       };
     }
@@ -50,11 +50,11 @@ export async function assertWalletUsdCoversStake(
     const msg =
       e instanceof Error
         ? e.message
-        : "Impossible de joindre l’indexeur de portefeuille.";
+        : "Could not reach the portfolio indexer.";
     return {
       ok: false,
       totalUsd: null,
-      error: `${msg} Configure MOBULA_API_KEY ou vérifie le réseau.`,
+      error: `${msg} Set MOBULA_API_KEY or check your network.`,
       httpStatus: 502,
     };
   }

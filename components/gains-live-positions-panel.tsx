@@ -387,7 +387,7 @@ export function GainsLivePositionsPanel({
       </div>
       {duelEnded ? (
         <p className="rounded-sm border border-[var(--game-magenta)]/40 bg-[rgba(255,61,154,0.08)] px-3 py-2 font-[family-name:var(--font-share-tech)] text-[11px] text-[var(--game-text)]">
-          Fin du chrono : les positions de ce duel sont considérées comme fermées côté serveur.
+          Timer ended: this duel’s positions are treated as closed on the server.
         </p>
       ) : null}
       {connectionState === "idle" && gainsWallet && showConnectionMeta ? (
@@ -431,7 +431,7 @@ export function GainsLivePositionsPanel({
       ) : connectionState === "open" ? (
         <p className={gameMuted}>
           {duelEnded ? (
-            <>Aucune position affichée (duel terminé).</>
+            <>No positions shown (duel ended).</>
           ) : (
             <>
               Waiting for position ticks

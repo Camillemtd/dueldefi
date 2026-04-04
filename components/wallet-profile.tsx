@@ -91,14 +91,14 @@ export function WalletProfile({ walletAddress }: Props) {
         </p>
         {payload?.mobulaSkippedReason === "friendly_hub_testnet_only" ? (
           <p className={`${gameMuted} mt-2 text-xs`}>
-            Mode Friendly — solde limité au collatéral testnet (Arbitrum Sepolia).
+            Friendly mode — balance limited to testnet collateral (Arbitrum Sepolia).
           </p>
         ) : payload?.hubPlayMode === "duel" && payload.usedOnchainFallback ? (
           <p className={`${gameMuted} mt-2 text-xs`}>
-            Mode Duel — repli on-chain (Mobula indisponible ou vide).
+            Duel mode — on-chain fallback (Mobula unavailable or empty).
           </p>
         ) : payload?.hubPlayMode === "duel" ? (
-          <p className={`${gameMuted} mt-2 text-xs`}>Mode Duel — portefeuille indexé via Mobula.</p>
+          <p className={`${gameMuted} mt-2 text-xs`}>Duel mode — portfolio indexed via Mobula.</p>
         ) : payload?.usedOnchainFallback ? (
           <p className={`${gameMuted} mt-2 text-xs`}>On-chain collateral on faucet chain (testnet).</p>
         ) : (
@@ -118,7 +118,7 @@ export function WalletProfile({ walletAddress }: Props) {
               disabled={!canWithdraw}
               className={`${gameBtnGhost} !w-auto shrink-0 border-[var(--game-magenta-dim)] text-[var(--game-magenta)]`}
             >
-              Retirer
+              Withdraw
             </button>
             <button
               type="button"

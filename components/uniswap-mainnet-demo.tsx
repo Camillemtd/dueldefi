@@ -45,13 +45,13 @@ export function UniswapMainnetDemo() {
       const data = (await res.json()) as DemoMeta & { error?: string };
       if (!res.ok) {
         setMeta(null);
-        setMetaErr(data.error ?? "Impossible de charger la config démo.");
+        setMetaErr(data.error ?? "Could not load demo config.");
         return;
       }
       setMeta(data);
     } catch {
       setMeta(null);
-      setMetaErr("Erreur réseau.");
+      setMetaErr("Network error.");
     }
   }, []);
 
@@ -71,12 +71,12 @@ export function UniswapMainnetDemo() {
       });
       const data = (await res.json()) as SwapResult;
       if (!res.ok) {
-        setLast({ error: data.error ?? `Erreur ${res.status}` });
+        setLast({ error: data.error ?? `Error ${res.status}` });
         return;
       }
       setLast(data);
     } catch {
-      setLast({ error: "Erreur réseau." });
+      setLast({ error: "Network error." });
     } finally {
       setBusy(null);
     }
@@ -87,10 +87,10 @@ export function UniswapMainnetDemo() {
       <div className="border-b border-[var(--game-cyan-dim)] px-6 py-5 sm:px-8">
         <p className={gameLabel}>Uniswap · Ethereum mainnet</p>
         <p className={`${gameMuted} mt-2 text-xs`}>
-          Démo technique uniquement : swaps réels, frais en ETH. Nécessite{" "}
+          Technical demo only: real swaps, fees in ETH. Requires{" "}
           <code className="text-[var(--game-cyan)]">MAINNET_RPC_URL</code>,{" "}
-          <code className="text-[var(--game-cyan)]">UNISWAP_TRADE_API_KEY</code> et des soldes
-          mainnet sur votre wallet Dynamic.
+          <code className="text-[var(--game-cyan)]">UNISWAP_TRADE_API_KEY</code>, and mainnet
+          balances on your Dynamic wallet.
         </p>
       </div>
 
@@ -100,7 +100,7 @@ export function UniswapMainnetDemo() {
           onClick={() => void loadMeta()}
           className={`${gameBtnGhost} !w-auto`}
         >
-          Actualiser le statut
+          Refresh status
         </button>
 
         {metaErr ? (
@@ -119,11 +119,11 @@ export function UniswapMainnetDemo() {
 
         {meta ? (
           <p className="font-[family-name:var(--font-share-tech)] text-sm text-[var(--game-text)]">
-            Chaîne <span className="text-[var(--game-cyan)]">{meta.chainId}</span> —{" "}
+            Chain <span className="text-[var(--game-cyan)]">{meta.chainId}</span> —{" "}
             {meta.ready ? (
-              <span className="text-[var(--game-cyan)]">prêt</span>
+              <span className="text-[var(--game-cyan)]">ready</span>
             ) : (
-              <span className="text-[var(--game-danger)]">configuration incomplète</span>
+              <span className="text-[var(--game-danger)]">incomplete configuration</span>
             )}
           </p>
         ) : null}
@@ -155,11 +155,11 @@ export function UniswapMainnetDemo() {
 
         {last?.swapTxHash ? (
           <p className="break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-cyan)]">
-            Swap tx : {last.swapTxHash}
+            Swap tx: {last.swapTxHash}
             {last.approvalTxHash ? (
               <>
                 <br />
-                Approbation : {last.approvalTxHash}
+                Approval: {last.approvalTxHash}
               </>
             ) : null}
             {last.cancelTxHash ? (

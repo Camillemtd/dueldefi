@@ -137,7 +137,7 @@ export async function executeUniswapClassicSwapFlow(params: {
   const swapRes = await uniswapPostJson<UniswapSwapResponse>("/swap", swapPayload);
 
   if (!isValidUniswapTx(swapRes.swap)) {
-    throw new Error("Réponse /swap invalide (data vide).");
+    throw new Error("Invalid /swap response (empty data).");
   }
 
   out.swapTxHash = await dynamicSignAndSendUniswapTx({

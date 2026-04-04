@@ -89,7 +89,7 @@ export function WalletWithdrawModal({
         chainId?: number;
       };
       if (!r.ok) {
-        setError(data.error ?? "Échec du retrait.");
+        setError(data.error ?? "Withdrawal failed.");
         return;
       }
       if (data.txHash) {
@@ -98,7 +98,7 @@ export function WalletWithdrawModal({
       }
       onSuccess();
     } catch {
-      setError("Erreur réseau.");
+      setError("Network error.");
     } finally {
       setBusy(false);
     }
@@ -126,22 +126,21 @@ export function WalletWithdrawModal({
             id="withdraw-modal-title"
             className={`${gameTitle} text-lg sm:text-xl`}
           >
-            Retirer des fonds
+            Withdraw funds
           </h2>
           <p className={`${gameMuted} mt-1 text-xs`}>
-            Transfert ERC-20 depuis ton wallet intégré vers une adresse externe. Vérifie bien le
-            réseau et le destinataire. Il te faut aussi un peu de l’actif natif (ETH) sur cette chaîne
-            pour les frais de gas.
+            ERC-20 transfer from your embedded wallet to an external address. Double-check the network
+            and recipient. You also need a small amount of the native asset (ETH) on that chain for gas.
           </p>
         </div>
 
         <div className="space-y-4 p-5 sm:p-6">
           {positions.length === 0 ? (
-            <p className={gameMuted}>Aucun actif à retirer.</p>
+            <p className={gameMuted}>No assets to withdraw.</p>
           ) : (
             <>
               <label className="block space-y-2">
-                <span className={gameLabel}>Jeton</span>
+                <span className={gameLabel}>Token</span>
                 <select
                   value={selected?.id ?? ""}
                   onChange={(e) => setSelectedId(e.target.value)}
@@ -150,7 +149,7 @@ export function WalletWithdrawModal({
                   {positions.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.symbol} · {p.chainLabel ?? `chain ${p.chainId}`} ·{" "}
-                      {p.balance.toLocaleString("fr-FR", { maximumFractionDigits: 8 })}
+                      {p.balance.toLocaleString("en-US", { maximumFractionDigits: 8 })}
                     </option>
                   ))}
                 </select>
@@ -170,7 +169,7 @@ export function WalletWithdrawModal({
               </label>
 
               <div className="space-y-2">
-                <span className={gameLabel}>Montant</span>
+                <span className={gameLabel}>Amount</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="text"
@@ -193,12 +192,12 @@ export function WalletWithdrawModal({
                     }}
                     className={`${gameBtnGhost} !w-auto shrink-0`}
                   >
-                    Tout retirer
+                    Withdraw max
                   </button>
                 </div>
                 <p className={`${gameMuted} text-xs`}>
-                  « Tout retirer » envoie 100 % du solde on-chain du token (peut différer légèrement du
-                  montant affiché par l’indexeur).
+                  “Withdraw max” sends 100% of the token’s on-chain balance (may differ slightly from the
+                  amount shown by the indexer).
                 </p>
               </div>
             </>
@@ -213,7 +212,7 @@ export function WalletWithdrawModal({
           {txHash ? (
             <div className="rounded-sm border border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] px-3 py-2 text-sm text-[var(--game-cyan)]">
               <p className="font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-wider">
-                Transaction envoyée
+                Transaction sent
               </p>
               <p className="mt-1 break-all font-[family-name:var(--font-share-tech)] text-xs">
                 {txHash}
@@ -225,7 +224,7 @@ export function WalletWithdrawModal({
                   rel="noopener noreferrer"
                   className="mt-2 inline-block text-xs underline"
                 >
-                  Voir sur l’explorateur
+                  View on explorer
                 </a>
               ) : null}
             </div>
@@ -237,7 +236,7 @@ export function WalletWithdrawModal({
               onClick={onClose}
               className={`${gameBtnGhost} w-full sm:w-auto`}
             >
-              Fermer
+              Close
             </button>
             {positions.length > 0 ? (
               <button
@@ -251,7 +250,7 @@ export function WalletWithdrawModal({
                 onClick={() => void submit()}
                 className={`${gameBtnPrimary} w-full sm:w-auto`}
               >
-                {busy ? "Signature…" : "Confirmer le retrait"}
+                {busy ? "Signing…" : "Confirm withdrawal"}
               </button>
             ) : null}
           </div>

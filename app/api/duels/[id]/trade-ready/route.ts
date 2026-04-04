@@ -106,7 +106,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            "En mode duel, choisis une chaîne d’exécution : gainsChain = Arbitrum ou Base.",
+            "In duel mode, set an execution chain: gainsChain must be Arbitrum or Base.",
         },
         { status: 400 },
       );

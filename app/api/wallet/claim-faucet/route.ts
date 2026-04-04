@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Faucet non configuré sur le serveur (USDC_FAUCET_CONTRACT_ADDRESS, FAUCET_RPC_URL, FAUCET_CHAIN_ID).",
+          "Faucet not configured on the server (USDC_FAUCET_CONTRACT_ADDRESS, FAUCET_RPC_URL, FAUCET_CHAIN_ID).",
       },
       { status: 503 },
     );
@@ -27,24 +27,24 @@ export async function POST(request: NextRequest) {
 
   const user = await findUserById(session.userId);
   if (!user || user.pseudo !== session.pseudo) {
-    return NextResponse.json({ error: "Session invalide." }, { status: 401 });
+    return NextResponse.json({ error: "Invalid session." }, { status: 401 });
   }
 
   if (!user.wallet_address) {
-    return NextResponse.json({ error: "Aucun wallet sur ce compte." }, { status: 400 });
+    return NextResponse.json({ error: "No wallet on this account." }, { status: 400 });
   }
 
   let walletAddress: `0x${string}`;
   try {
     walletAddress = getAddress(user.wallet_address.trim() as `0x${string}`);
   } catch {
-    return NextResponse.json({ error: "Adresse wallet invalide." }, { status: 500 });
+    return NextResponse.json({ error: "Invalid wallet address." }, { status: 500 });
   }
 
   const authToken = process.env.DYNAMIC_AUTH_TOKEN;
   const environmentId = process.env.DYNAMIC_ENVIRONMENT_ID;
   if (!authToken || !environmentId) {
-    return NextResponse.json({ error: "Configuration Dynamic manquante." }, { status: 500 });
+    return NextResponse.json({ error: "Dynamic configuration missing." }, { status: 500 });
   }
 
   try {
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         error:
           e instanceof Error
             ? e.message
-            : "Échec du faucet (gas natif ou RPC).",
+            : "Faucet failed (native gas or RPC).",
       },
       { status: 502 },
     );

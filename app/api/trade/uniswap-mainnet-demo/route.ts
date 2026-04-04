@@ -29,7 +29,7 @@ function configReady(): boolean {
 export async function GET(request: NextRequest) {
   const session = await getSessionFromRequest(request);
   if (!session) {
-    return NextResponse.json({ error: "Non connecté." }, { status: 401 });
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
   const ethWei = demoEthAmountWei();
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
     ethLabel = `${formatUnits(BigInt(ethWei), 18)} ETH`;
     usdcLabel = `${formatUnits(BigInt(usdcRaw), 6)} USDC`;
   } catch {
-    ethLabel = "ETH (voir UNISWAP_MAINNET_DEMO_ETH_WEI)";
-    usdcLabel = "USDC (voir UNISWAP_MAINNET_DEMO_USDC_RAW)";
+    ethLabel = "ETH (see UNISWAP_MAINNET_DEMO_ETH_WEI)";
+    usdcLabel = "USDC (see UNISWAP_MAINNET_DEMO_USDC_RAW)";
   }
 
   return NextResponse.json({
@@ -49,9 +49,9 @@ export async function GET(request: NextRequest) {
     chainId: MAINNET_CHAIN_ID,
     warnings: [
       !configReady()
-        ? "Configurer UNISWAP_TRADE_API_KEY et MAINNET_RPC_URL sur le serveur."
+        ? "Set UNISWAP_TRADE_API_KEY and MAINNET_RPC_URL on the server."
         : null,
-      "Swaps réels sur Ethereum mainnet : frais en ETH. Wallet Dynamic = même adresse sur toutes les chaînes.",
+      "Real swaps on Ethereum mainnet: fees in ETH. Dynamic wallet = same address on all chains.",
     ].filter(Boolean),
     demos: {
       eth_to_usdc: {
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Uniswap mainnet demo indisponible : définir UNISWAP_TRADE_API_KEY et MAINNET_RPC_URL.",
+          "Uniswap mainnet demo unavailable: set UNISWAP_TRADE_API_KEY and MAINNET_RPC_URL.",
       },
       { status: 503 },
     );
@@ -79,14 +79,14 @@ export async function POST(request: NextRequest) {
 
   const session = await getSessionFromRequest(request);
   if (!session) {
-    return NextResponse.json({ error: "Non connecté." }, { status: 401 });
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "JSON invalide." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
   const b =
@@ -98,31 +98,31 @@ export async function POST(request: NextRequest) {
 
   const user = await findUserById(session.userId);
   if (!user || user.pseudo !== session.pseudo) {
-    return NextResponse.json({ error: "Session invalide." }, { status: 401 });
+    return NextResponse.json({ error: "Invalid session." }, { status: 401 });
   }
 
   if (!user.wallet_address) {
-    return NextResponse.json({ error: "Aucun wallet sur ce compte." }, { status: 400 });
+    return NextResponse.json({ error: "No wallet on this account." }, { status: 400 });
   }
 
   let walletAddress: Address;
   try {
     walletAddress = getAddress(user.wallet_address as Address);
   } catch {
-    return NextResponse.json({ error: "Adresse wallet invalide." }, { status: 500 });
+    return NextResponse.json({ error: "Invalid wallet address." }, { status: 500 });
   }
 
   const authToken = process.env.DYNAMIC_AUTH_TOKEN;
   const environmentId = process.env.DYNAMIC_ENVIRONMENT_ID;
   if (!authToken || !environmentId) {
-    return NextResponse.json({ error: "Configuration Dynamic serveur manquante." }, { status: 500 });
+    return NextResponse.json({ error: "Server Dynamic configuration missing." }, { status: 500 });
   }
 
   let chain;
   try {
     chain = getUniswapMainnetChain();
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "MAINNET_RPC_URL manquant.";
+    const msg = e instanceof Error ? e.message : "MAINNET_RPC_URL missing.";
     return NextResponse.json({ error: msg }, { status: 503 });
   }
 
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
   try {
     usdc = getMainnetUsdcAddress();
   } catch {
-    return NextResponse.json({ error: "Adresse USDC mainnet invalide." }, { status: 500 });
+    return NextResponse.json({ error: "Invalid mainnet USDC address." }, { status: 500 });
   }
 
   const ethWei = demoEthAmountWei();
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     console.error("[uniswap-mainnet-demo]", e);
-    const msg = e instanceof Error ? e.message : "Swap échoué.";
+    const msg = e instanceof Error ? e.message : "Swap failed.";
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 }

@@ -48,19 +48,19 @@ function chainLabelForStakeUi(chain?: string | null): string {
   if (chain === "Arbitrum") return "Arbitrum One";
   if (chain === "Testnet") return "Arbitrum Sepolia (testnet)";
   if (chain === "Base") return "Base";
-  return "la chaîne du duel";
+  return "this duel’s chain";
 }
 
 function joinRequirementLabel(d: DuelApi): string {
   if (d.playMode === "duel") {
-    return "ton portefeuille (total estimé en USD, indexé par Mobula)";
+    return "your wallet (total estimated in USD, indexed by Mobula)";
   }
   return chainLabelForStakeUi(d.opponentChain);
 }
 
 function formatUsdEstimate(n: number) {
   if (!Number.isFinite(n)) return "—";
-  return new Intl.NumberFormat("fr-FR", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: n >= 1 ? 2 : 6,
@@ -201,7 +201,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
         return {
           kind: "portfolio_usd",
           configured: false,
-          error: data.error ?? "Impossible de charger le portefeuille.",
+          error: data.error ?? "Could not load portfolio.",
         };
       }
       const total = data.totalWalletBalanceUsd;
@@ -209,7 +209,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
         return {
           kind: "portfolio_usd",
           configured: false,
-          error: "Réponse portfolio sans total USD.",
+          error: "Portfolio response missing USD total.",
         };
       }
       return {
@@ -399,7 +399,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
       });
       const data = (await r.json()) as { error?: string };
       if (!r.ok) {
-        setClaimError(data.error ?? "Faucet échoué.");
+        setClaimError(data.error ?? "Faucet failed.");
         return;
       }
       const stake = duel?.stakeUsdc;
@@ -411,7 +411,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
         balancePollInProgressRef.current = false;
       }
     } catch {
-      setClaimError("Erreur réseau.");
+      setClaimError("Network error.");
     } finally {
       setClaimLoading(false);
     }
@@ -461,23 +461,23 @@ export function DuelAcceptPanel({ duelId }: Props) {
           <p className={gameLabel}>Guest</p>
           <h2 className={`${gameTitle} text-lg sm:text-xl`}>Join the arena</h2>
           <p className={gameMuted}>
-            Sign in or create an account. Mise :{" "}
+            Sign in or create an account. Stake:{" "}
             <span className="font-medium text-[var(--game-cyan)]">
               {formatUsdcLabel(duel.stakeUsdc)} USDC
             </span>{" "}
-            par joueur.{" "}
+            per player.{" "}
             {duel.playMode === "duel" ? (
               <>
-                Mode Duel — on vérifie que{" "}
-                <span className="text-[var(--game-cyan)]">{joinRequirementLabel(duel)}</span> couvre
-                au moins cette somme en dollars. Chaque joueur choisit Arbitrum ou Base lors de la
-                préparation du trade.
+                Duel mode — we check that{" "}
+                <span className="text-[var(--game-cyan)]">{joinRequirementLabel(duel)}</span> covers
+                at least that amount in USD. Each player picks Arbitrum or Base during trade
+                preparation.
               </>
             ) : (
               <>
-                Mode Friendly — il te faut les USDC sur{" "}
-                <span className="text-[var(--game-cyan)]">{joinRequirementLabel(duel)}</span>. Tu peux
-                utiliser le faucet test si le solde est insuffisant.
+                Friendly mode — you need USDC on{" "}
+                <span className="text-[var(--game-cyan)]">{joinRequirementLabel(duel)}</span>. You can
+                use the test faucet if your balance is too low.
               </>
             )}
           </p>
@@ -514,11 +514,11 @@ export function DuelAcceptPanel({ duelId }: Props) {
               setBalanceCoversStake(false);
               if (info?.faucetStatus === "not_configured") {
                 setFundingNotice(
-                  "Le serveur n’a pas le faucet USDC configuré (USDC_FAUCET_CONTRACT_ADDRESS, FAUCET_RPC_URL, FAUCET_CHAIN_ID). Envoie manuellement des USDC sur la chaîne faucet à l’adresse du wallet affichée après inscription, ou configure ces variables.",
+                  "The server does not have the USDC faucet configured (USDC_FAUCET_CONTRACT_ADDRESS, FAUCET_RPC_URL, FAUCET_CHAIN_ID). Send test USDC manually on the faucet chain to the wallet address shown after signup, or set these variables.",
                 );
               } else if (info?.faucetStatus === "failed") {
                 setFundingNotice(
-                  `Le faucet automatique a échoué (souvent : pas de gas natif — définis PRIVATE_KEY_GAS_DISPATCHER sur le serveur, ou RPC/contrat incorrect). Détail : ${info.faucetError ?? "erreur inconnue"}`,
+                  `Automatic faucet failed (often: no native gas — set PRIVATE_KEY_GAS_DISPATCHER on the server, or wrong RPC/contract). Detail: ${info.faucetError ?? "unknown error"}`,
                 );
               }
 
@@ -553,16 +553,16 @@ export function DuelAcceptPanel({ duelId }: Props) {
           You run this arena
         </p>
         <p className={gameMuted}>
-          Send the link to your opponent: they sign in, then accept. Mise :{" "}
+          Send the link to your opponent: they sign in, then accept. Stake:{" "}
           {formatUsdcLabel(duel.stakeUsdc)} USDC.{" "}
           {duel.playMode === "duel" ? (
             <>
-              Mode Duel — l’invité doit avoir une valeur de portefeuille estimée ≥ à cette mise (USD,
-              Mobula). Les chaînes de trade (Arbitrum / Base) sont choisies à la préparation.
+              Duel mode — the guest needs estimated portfolio value ≥ this stake (USD, Mobula).
+              Trade chains (Arbitrum / Base) are chosen at preparation.
             </>
           ) : (
             <>
-              Mode Friendly — il leur faut les USDC testnet sur{" "}
+              Friendly mode — they need testnet USDC on{" "}
               <span className="text-[var(--game-cyan)]">{joinRequirementLabel(duel)}</span>.
             </>
           )}
@@ -627,12 +627,12 @@ export function DuelAcceptPanel({ duelId }: Props) {
           .{" "}
           {duel.playMode === "duel" ? (
             <>
-              Mode Duel — exigence : total portefeuille estimé ≥ à cette mise (USD). Chaîne de trade
-              choisie plus tard (Arbitrum ou Base).
+              Duel mode — requirement: estimated portfolio total ≥ this stake (USD). Trade chain
+              chosen later (Arbitrum or Base).
             </>
           ) : (
             <>
-              Mode Friendly — sur{" "}
+              Friendly mode — on{" "}
               <span className="text-[var(--game-cyan)]">{joinRequirementLabel(duel)}</span>.
             </>
           )}
@@ -647,13 +647,13 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
       {balanceCoversStake ? (
         <p className="rounded-sm border border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.1)] px-3 py-2 text-sm font-medium text-[var(--game-cyan)]">
-          Solde à jour : les USDC sont bien visibles sur la chaîne pour cette mise — tu peux entrer dans l’arène.
+          Balance updated: USDC is visible on-chain for this stake — you can enter the arena.
         </p>
       ) : null}
 
       {balanceLoading && !confirmingUsdc ? (
         <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider`}>
-          Lecture du solde…
+          Reading balance…
         </p>
       ) : null}
 
@@ -661,7 +661,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
         <p
           className={`${gameMuted} rounded-sm border border-[var(--game-cyan)]/35 bg-[rgba(65,245,240,0.08)] px-3 py-2 font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider text-[var(--game-cyan)]`}
         >
-          Synchronisation du solde USDC sur la chaîne — la transaction faucet est en cours de confirmation…
+          Syncing USDC balance on-chain — faucet transaction confirming…
         </p>
       ) : null}
 
@@ -676,7 +676,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
             <>
               <p>
                 <span className="text-[var(--game-text-muted)]">
-                  {balance.kind === "portfolio_usd" ? "Total estimé : " : "Your balance: "}
+                  {balance.kind === "portfolio_usd" ? "Estimated total: " : "Your balance: "}
                 </span>
                 <span className="font-[family-name:var(--font-share-tech)] font-medium text-[var(--game-text)]">
                   {balance.kind === "portfolio_usd"
@@ -688,13 +688,13 @@ export function DuelAcceptPanel({ duelId }: Props) {
                 <div className="space-y-3">
                   <p className="text-[var(--game-danger)]">
                     {duel.playMode === "duel" ? (
-                      `Valeur portefeuille insuffisante : il faut au moins ${formatUsdcLabel(duel.stakeUsdc)} USD estimés (Mobula) pour accepter.`
+                      `Insufficient portfolio value: you need at least ${formatUsdcLabel(duel.stakeUsdc)} USD estimated (Mobula) to accept.`
                     ) : (
                       <>
-                        Solde insuffisant pour la mise. Tu peux redemander un envoi test depuis le serveur (même
-                        flux qu’à l’inscription). Si ça échoue encore, vérifie{" "}
-                        <code className="text-[var(--game-cyan)]">PRIVATE_KEY_GAS_DISPATCHER</code> (ETH sur la
-                        chaîne faucet) et le message orange ci‑dessus.
+                        Insufficient balance for the stake. You can request another test send from the server
+                        (same flow as signup). If it still fails, check{" "}
+                        <code className="text-[var(--game-cyan)]">PRIVATE_KEY_GAS_DISPATCHER</code> (ETH on the
+                        faucet chain) and the orange message above.
                       </>
                     )}
                   </p>
@@ -709,7 +709,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
                         onClick={() => void onClaimFaucet()}
                         className={`${gameBtnGhost} w-full sm:w-auto`}
                       >
-                        {claimLoading ? "Envoi…" : "Recevoir USDC test (faucet)"}
+                        {claimLoading ? "Sending…" : "Get test USDC (faucet)"}
                       </button>
                     </div>
                   ) : null}
@@ -743,7 +743,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
           onClick={() => void loadBalance()}
           className={`${gameMuted} text-left text-xs underline decoration-[var(--game-cyan-dim)] underline-offset-2 sm:text-sm`}
         >
-          Rafraîchir le solde
+          Refresh balance
         </button>
       </div>
     </div>

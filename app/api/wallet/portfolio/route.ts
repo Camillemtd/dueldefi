@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Mode friendly : impossible de lire le collatéral sur la chaîne testnet (FAUCET_* / GNS_COLLATERAL).",
+            "Friendly mode: could not read collateral on the testnet chain (FAUCET_* / GNS_COLLATERAL).",
         },
         { status: 502 },
       );

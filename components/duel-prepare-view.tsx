@@ -201,20 +201,20 @@ export function DuelPrepareView() {
           })
           const data = (await r.json()) as { error?: string }
           if (!r.ok) {
-            errs.push(`#${pos.index ?? "?"}: ${data.error ?? "échec"}`)
+            errs.push(`#${pos.index ?? "?"}: ${data.error ?? "failed"}`)
           }
         } catch {
-          errs.push(`#${pos.index ?? "?"}: réseau`)
+          errs.push(`#${pos.index ?? "?"}: network`)
         }
       }
       setDuelAutoCloseBusy(false)
       if (errs.length > 0) {
         setDuelAutoCloseResult(
-          `Fermeture auto partielle ou en erreur — ${errs.join(" · ")}. Tu peux réessayer à la main depuis les cartes.`,
+          `Auto-close partial or failed — ${errs.join(" · ")}. You can retry manually from the cards.`,
         )
       } else {
         setDuelAutoCloseResult(
-          "Toutes tes positions du duel ont été fermées au marché.",
+          "All your duel positions were closed at market.",
         )
       }
     })()
@@ -675,18 +675,17 @@ export function DuelPrepareView() {
             </span>
           </p>
           <p className={gameMuted}>
-            Dès que les deux sont prêts, ta position s’ouvre avec{" "}
+            Once both are ready, your position opens with{" "}
             <span className="font-semibold text-[var(--game-magenta)]">
-              signature auto
+              auto-sign
             </span>
-            . Au signal WebSocket{" "}
+            . On WebSocket{" "}
             <span className="font-semibold text-[var(--game-cyan)]">start</span>
-            , compte à rebours{" "}
+            , a fullscreen{" "}
             <span className="font-semibold text-[var(--game-magenta)]">
               3 · 2 · 1
             </span>{" "}
-            plein écran — les positions live et le chrono du duel n’apparaissent
-            qu’après.
+            countdown — live positions and the duel timer only appear after that.
           </p>
         </div>
 
@@ -698,7 +697,7 @@ export function DuelPrepareView() {
                   className={`${gamePanel} ${gamePanelTopAccent} flex flex-wrap items-center justify-between gap-3 p-4`}
                 >
                   <div>
-                    <p className={gameLabel}>Temps restant (duel)</p>
+                    <p className={gameLabel}>Time left (duel)</p>
                     <p
                       className={`font-[family-name:var(--font-orbitron)] text-2xl font-black tabular-nums tracking-wider sm:text-3xl ${
                         duelTimerEnded || duelCountdownDisplay === 0
@@ -716,9 +715,8 @@ export function DuelPrepareView() {
                     </p>
                   </div>
                   <p className={`${gameMuted} max-w-md text-[11px]`}>
-                    Les positions se mettent à jour en direct. Quand le chrono
-                    tombe à 0, tes positions sont fermées au marché
-                    automatiquement (une transaction par trade).
+                    Positions update live. When the timer hits 0, your positions
+                    are closed at market automatically (one transaction per trade).
                   </p>
                 </div>
 
@@ -732,7 +730,7 @@ export function DuelPrepareView() {
                           : ""
                     }`}
                   >
-                    <p className={gameLabel}>Résultat du duel</p>
+                    <p className={gameLabel}>Duel result</p>
                     <h2
                       className={`font-[family-name:var(--font-orbitron)] text-xl font-black uppercase tracking-wide sm:text-2xl ${
                         duelPnlOutcome.winner === "you"
@@ -745,24 +743,24 @@ export function DuelPrepareView() {
                       }`}
                     >
                       {duelPnlOutcome.winner === "you"
-                        ? "Victoire"
+                        ? "Win"
                         : duelPnlOutcome.winner === "opponent"
-                          ? "Défaite"
+                          ? "Loss"
                           : duelPnlOutcome.winner === "tie"
-                            ? "Égalité"
-                            : "Score incomplet"}
+                            ? "Tie"
+                            : "Incomplete score"}
                     </h2>
                     <p className={`${gameMuted} text-[12px]`}>
-                      Classement sur le{" "}
+                      Ranking by{" "}
                       <span className="font-semibold text-[var(--game-text)]">
-                        PnL en %
+                        PnL %
                       </span>{" "}
-                      au dernier tick à ~1 s (ou dernier % connu si la position
-                      a été fermée avant la fin).
+                      at the last tick ~1s (or last known % if the position closed
+                      before the end).
                     </p>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4">
-                        <p className={gameLabel}>Toi</p>
+                        <p className={gameLabel}>You</p>
                         <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-text)]">
                           {myTradePseudo}
                         </p>
@@ -775,7 +773,7 @@ export function DuelPrepareView() {
                         </p>
                       </div>
                       <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4">
-                        <p className={gameLabel}>Adversaire</p>
+                        <p className={gameLabel}>Opponent</p>
                         <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-text)]">
                           {opponentTradePseudo}
                         </p>
@@ -783,7 +781,7 @@ export function DuelPrepareView() {
                           {formatOutcomePct(duelPnlOutcome.opponentPnlPct)}
                         </p>
                         <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
-                          PnL USDC :{" "}
+                          PnL USDC:{" "}
                           {formatOutcomeUsdc(duelPnlOutcome.opponentPnlUsdc)}
                         </p>
                       </div>
@@ -795,16 +793,16 @@ export function DuelPrepareView() {
                   <div
                     className={`rounded-sm border px-4 py-3 text-sm ${
                       duelAutoCloseResult != null &&
-                      (duelAutoCloseResult.includes("partielle") ||
-                        duelAutoCloseResult.includes("erreur"))
+                      (duelAutoCloseResult.includes("partial") ||
+                        duelAutoCloseResult.includes("failed"))
                         ? "border-[var(--game-danger)]/50 bg-[rgba(255,80,80,0.08)] text-[var(--game-text)]"
                         : "border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] text-[var(--game-text)]"
                     }`}
                   >
                     {duelAutoCloseBusy ? (
                       <p className="font-[family-name:var(--font-share-tech)] text-[13px] text-[var(--game-text)]">
-                        Fermeture automatique des positions au marché (une
-                        transaction par trade)…
+                        Auto-closing positions at market (one transaction per
+                        trade)…
                       </p>
                     ) : duelAutoCloseResult ? (
                       <p className="font-[family-name:var(--font-share-tech)] text-[13px]">
@@ -818,14 +816,14 @@ export function DuelPrepareView() {
                   {/* Gauche : ton trade · Droite : adversaire */}
                   <div className="min-w-0 space-y-2">
                     <div>
-                      <p className={gameLabel}>Ton trade</p>
+                      <p className={gameLabel}>Your trade</p>
                       <p className="truncate font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-[var(--game-text)] sm:text-lg">
                         {myTradePseudo}
                       </p>
                     </div>
                     <GainsLivePositionsPanel
                       panelTitle="Positions (live)"
-                      positionCardLabel="Ta position"
+                      positionCardLabel="Your position"
                       showConnectionMeta
                       positions={myPositions}
                       pnlHistoryByKey={pnlHistoryMy}
@@ -842,14 +840,14 @@ export function DuelPrepareView() {
                   </div>
                   <div className="min-w-0 space-y-2">
                     <div>
-                      <p className={gameLabel}>Adversaire</p>
+                      <p className={gameLabel}>Opponent</p>
                       <p className="truncate font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-[var(--game-text)] sm:text-lg">
                         {opponentTradePseudo}
                       </p>
                     </div>
                     <GainsLivePositionsPanel
                       panelTitle="Positions (live)"
-                      positionCardLabel="Position adverse"
+                      positionCardLabel="Opponent position"
                       readOnly
                       showConnectionMeta={false}
                       positions={opponentPositions}
@@ -888,20 +886,20 @@ export function DuelPrepareView() {
             </h2>
             {duel.myExecGainsChain ? (
               <p className={`${gameMuted} text-xs`}>
-                {duel.playMode === "duel" ? "Mode Duel" : "Mode Friendly"} — chaîne imposée pour ton trade :{" "}
+                {duel.playMode === "duel" ? "Duel mode" : "Friendly mode"} — fixed chain for your trade:{" "}
                 <span className="text-[var(--game-cyan)]">{duel.myExecGainsChain}</span>
                 {duel.creatorChain != null && duel.opponentChain != null ? (
                   <>
                     {" "}
-                    (hôte {duel.creatorChain} · invité {duel.opponentChain})
+                    (host {duel.creatorChain} · guest {duel.opponentChain})
                   </>
                 ) : null}
               </p>
             ) : duel.playMode === "duel" ? (
               <p className={`${gameMuted} text-xs`}>
-                Mode Duel — choisis <span className="text-[var(--game-cyan)]">Arbitrum</span> ou{" "}
-                <span className="text-[var(--game-cyan)]">Base</span> pour ton trade ; la chaîne est
-                enregistrée quand tu marques prêt.
+                Duel mode — pick <span className="text-[var(--game-cyan)]">Arbitrum</span> or{" "}
+                <span className="text-[var(--game-cyan)]">Base</span> for your trade; the chain is saved
+                when you mark ready.
               </p>
             ) : null}
             <div className="space-y-2">
@@ -997,20 +995,19 @@ export function DuelPrepareView() {
               aria-hidden
             />
             <p className="font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-[0.35em] text-[var(--game-cyan)]">
-              En attente du signal serveur
+              Waiting for server signal
             </p>
             <p
               className={`${gameMuted} mt-2 max-w-xs px-4 text-center text-[11px]`}
             >
-              Les deux joueurs sont prêts. Connexion WebSocket :{" "}
+              Both players are ready. WebSocket:{" "}
               <span className="font-semibold text-[var(--game-text)]">
                 {connectionState}
               </span>
               {connectionState !== "open" ? (
                 <>
                   {" "}
-                  — ouvre la préparation avec un wallet connecté pour t’abonner
-                  au duel.
+                  — open prep with a connected wallet to subscribe to the duel.
                 </>
               ) : null}
             </p>
@@ -1024,7 +1021,7 @@ export function DuelPrepareView() {
             </p>
             <p className="game-countdown-num tabular-nums">{prepOverlayNum}</p>
             <p className="mt-8 font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-[0.35em] text-[var(--game-text-muted)]">
-              Synchro duel
+              Duel sync
             </p>
           </div>
         ) : null}
@@ -1040,12 +1037,11 @@ export function DuelPrepareView() {
               Trade launch
             </h2>
             {execLoading && !txHash && !duel.myTradeOpened ? (
-              <p className={gameMuted}>Signature en cours…</p>
+              <p className={gameMuted}>Signing…</p>
             ) : null}
             {duel.myTradeOpened && !txHash && !execError && !execLoading ? (
               <p className={gameMuted}>
-                Position déjà ouverte — reprise de session (pas de nouvelle
-                signature).
+                Position already open — resuming session (no new signature).
               </p>
             ) : null}
             {execError ? (
@@ -1065,7 +1061,7 @@ export function DuelPrepareView() {
             ) : null}
             {txHash ? (
               <p className="break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-cyan)]">
-                Tx : {txHash}
+                Tx: {txHash}
               </p>
             ) : null}
           </div>

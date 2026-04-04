@@ -53,7 +53,7 @@ export function buildGnsTradeFromDuelConfig(
 
   const pairIndex = Math.floor(Number(side.pairIndex));
   if (!Number.isFinite(pairIndex) || pairIndex < 0 || pairIndex > 65535) {
-    throw new Error("pairIndex invalide.");
+    throw new Error("Invalid pairIndex.");
   }
 
   const levX = Number(side.leverageX);

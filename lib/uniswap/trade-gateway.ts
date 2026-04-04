@@ -56,11 +56,11 @@ export type UniswapSwapResponse = {
 };
 
 function parseUniswapError(json: unknown): string {
-  if (typeof json !== "object" || json === null) return "Erreur Uniswap inconnue.";
+  if (typeof json !== "object" || json === null) return "Unknown Uniswap error.";
   const o = json as { message?: unknown; error?: unknown };
   if (typeof o.message === "string" && o.message.length > 0) return o.message;
   if (typeof o.error === "string" && o.error.length > 0) return o.error;
-  return "Erreur Uniswap inconnue.";
+  return "Unknown Uniswap error.";
 }
 
 export async function uniswapPostJson<T>(

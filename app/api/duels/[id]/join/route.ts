@@ -100,7 +100,7 @@ export async function POST(
         {
           error:
             joinChain === "Arbitrum"
-              ? "Impossible de lire ton USDC sur Arbitrum One (ARBITRUM_RPC_URL, collatéral)."
+              ? "Could not read your USDC on Arbitrum One (ARBITRUM_RPC_URL, collateral)."
               : "Could not read your USDC balance (RPC / GNS_COLLATERAL_TOKEN_ADDRESS).",
         },
         { status: 502 },

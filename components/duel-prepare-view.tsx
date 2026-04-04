@@ -483,6 +483,15 @@ export function DuelPrepareView() {
     "—",
   );
 
+  const myTradePseudo =
+    duel.viewer?.isCreator === true
+      ? duel.creatorPseudo
+      : duel.opponentPseudo ?? "—";
+  const opponentTradePseudo =
+    duel.viewer?.isCreator === true
+      ? duel.opponentPseudo ?? "—"
+      : duel.creatorPseudo;
+
   return (
     <>
       <GameHudBar>
@@ -587,22 +596,28 @@ export function DuelPrepareView() {
                   connu si la position a été fermée avant la fin).
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4 sm:order-1">
-                    <p className={gameLabel}>Adversaire</p>
-                    <p className="font-[family-name:var(--font-orbitron)] text-lg font-bold tabular-nums text-[var(--game-magenta)]">
-                      {formatOutcomePct(duelPnlOutcome.opponentPnlPct)}
-                    </p>
-                    <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
-                      PnL USDC : {formatOutcomeUsdc(duelPnlOutcome.opponentPnlUsdc)}
-                    </p>
-                  </div>
-                  <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4 sm:order-2">
+                  <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4">
                     <p className={gameLabel}>Toi</p>
-                    <p className="font-[family-name:var(--font-orbitron)] text-lg font-bold tabular-nums text-[var(--game-cyan)]">
+                    <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-text)]">
+                      {myTradePseudo}
+                    </p>
+                    <p className="mt-2 font-[family-name:var(--font-orbitron)] text-lg font-bold tabular-nums text-[var(--game-cyan)]">
                       {formatOutcomePct(duelPnlOutcome.myPnlPct)}
                     </p>
                     <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
                       PnL USDC : {formatOutcomeUsdc(duelPnlOutcome.myPnlUsdc)}
+                    </p>
+                  </div>
+                  <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4">
+                    <p className={gameLabel}>Adversaire</p>
+                    <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-text)]">
+                      {opponentTradePseudo}
+                    </p>
+                    <p className="mt-2 font-[family-name:var(--font-orbitron)] text-lg font-bold tabular-nums text-[var(--game-magenta)]">
+                      {formatOutcomePct(duelPnlOutcome.opponentPnlPct)}
+                    </p>
+                    <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
+                      PnL USDC : {formatOutcomeUsdc(duelPnlOutcome.opponentPnlUsdc)}
                     </p>
                   </div>
                 </div>
@@ -629,16 +644,21 @@ export function DuelPrepareView() {
             ) : null}
 
             <div className="grid gap-4 lg:grid-cols-2">
-              {/* Gauche : adversaire · Droite : toi */}
-              <div className="min-w-0">
+              {/* Gauche : ton trade · Droite : adversaire */}
+              <div className="min-w-0 space-y-2">
+                <div>
+                  <p className={gameLabel}>Ton trade</p>
+                  <p className="truncate font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-[var(--game-text)] sm:text-lg">
+                    {myTradePseudo}
+                  </p>
+                </div>
                 <GainsLivePositionsPanel
-                  panelTitle="Adversaire (live)"
-                  positionCardLabel="Position adverse"
-                  readOnly
-                  showConnectionMeta={false}
-                  positions={opponentPositions}
-                  pnlHistoryByKey={pnlHistoryOpponent}
-                  historyKeyForPosition={(p) => gainsPositionHistorySideKey("opponent", p)}
+                  panelTitle="Positions (live)"
+                  positionCardLabel="Ta position"
+                  showConnectionMeta
+                  positions={myPositions}
+                  pnlHistoryByKey={pnlHistoryMy}
+                  historyKeyForPosition={(p) => gainsPositionHistorySideKey("my", p)}
                   connectionState={connectionState}
                   lastWsError={lastWsError}
                   gainsWallet={gainsWallet}
@@ -647,13 +667,21 @@ export function DuelPrepareView() {
                   duelEnded={duelTimerEnded}
                 />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 space-y-2">
+                <div>
+                  <p className={gameLabel}>Adversaire</p>
+                  <p className="truncate font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-[var(--game-text)] sm:text-lg">
+                    {opponentTradePseudo}
+                  </p>
+                </div>
                 <GainsLivePositionsPanel
-                  panelTitle="Mes positions (live)"
-                  showConnectionMeta
-                  positions={myPositions}
-                  pnlHistoryByKey={pnlHistoryMy}
-                  historyKeyForPosition={(p) => gainsPositionHistorySideKey("my", p)}
+                  panelTitle="Positions (live)"
+                  positionCardLabel="Position adverse"
+                  readOnly
+                  showConnectionMeta={false}
+                  positions={opponentPositions}
+                  pnlHistoryByKey={pnlHistoryOpponent}
+                  historyKeyForPosition={(p) => gainsPositionHistorySideKey("opponent", p)}
                   connectionState={connectionState}
                   lastWsError={lastWsError}
                   gainsWallet={gainsWallet}

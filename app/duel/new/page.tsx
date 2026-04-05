@@ -222,7 +222,7 @@ export default function NewDuelPage() {
 
       {clipboardNotice ? (
         <div
-          className="pointer-events-none fixed bottom-6 left-1/2 z-[70] max-w-[min(90vw,20rem)] -translate-x-1/2 rounded-sm border border-[var(--game-cyan)]/50 bg-[rgba(4,2,12,0.92)] px-4 py-3 text-center shadow-[0_0_32px_rgba(65,245,240,0.2)] backdrop-blur-sm"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-[70] max-w-[min(90vw,20rem)] -translate-x-1/2 rounded-sm border border-[var(--game-cyan)]/50 bg-[rgba(4,2,12,0.92)] px-4 py-3 text-center shadow-[0_0_32px_rgba(129,140,248,0.2)] backdrop-blur-sm"
           role="status"
           aria-live="polite"
         >

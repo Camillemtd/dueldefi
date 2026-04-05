@@ -96,8 +96,8 @@ export default async function DuelLobbyPage({ params }: Props) {
         <div
           className={`rounded-sm border px-4 py-3 ${
             duelPlayMode === "duel"
-              ? "border-[var(--game-magenta)]/50 bg-[rgba(255,61,154,0.08)] text-[var(--game-text)]"
-              : "border-[var(--game-cyan-dim)]/60 bg-[rgba(65,245,240,0.06)] text-[var(--game-text-muted)]"
+              ? "border-[var(--game-magenta)]/50 bg-[rgba(251,191,36,0.08)] text-[var(--game-text)]"
+              : "border-[var(--game-cyan-dim)]/60 bg-[rgba(129,140,248,0.06)] text-[var(--game-text-muted)]"
           }`}
         >
           <p className="font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-[0.2em]">

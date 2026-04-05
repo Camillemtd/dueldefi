@@ -143,10 +143,10 @@ export function GainsPairPicker({
                     }
                   }}
                   className={`border-t border-[var(--game-cyan-dim)]/40 transition first:border-t-0 ${
-                    disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-[rgba(65,245,240,0.06)]"
+                    disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-[rgba(129,140,248,0.06)]"
                   } ${
                     selected
-                      ? "bg-[rgba(65,245,240,0.12)] ring-1 ring-inset ring-[var(--game-cyan)]/40"
+                      ? "bg-[rgba(129,140,248,0.12)] ring-1 ring-inset ring-[var(--game-cyan)]/40"
                       : ""
                   }`}
                 >

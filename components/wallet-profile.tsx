@@ -102,7 +102,7 @@ export function WalletProfile({ walletAddress }: Props) {
     <div
       className={`${gamePanel} ${gamePanelTopAccent} relative flex flex-col overflow-hidden`}
     >
-      <div className="border-b border-[var(--game-cyan-dim)] bg-[linear-gradient(135deg,rgba(65,245,240,0.08),rgba(255,61,154,0.06))] px-4 py-4 sm:px-5">
+      <div className="border-b border-[var(--game-cyan-dim)] bg-[linear-gradient(135deg,rgba(129,140,248,0.08),rgba(251,191,36,0.06))] px-4 py-4 sm:px-5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className={gameLabel}>Wallet</p>
@@ -110,7 +110,7 @@ export function WalletProfile({ walletAddress }: Props) {
               {shortAddress(walletAddress)}
             </p>
           </div>
-          <p className="shrink-0 font-[family-name:var(--font-orbitron)] text-xl font-black tabular-nums tracking-tight text-[var(--game-text)] [text-shadow:0_0_28px_rgba(65,245,240,0.25)] sm:text-2xl">
+          <p className="shrink-0 font-[family-name:var(--font-orbitron)] text-xl font-black tabular-nums tracking-tight text-[var(--game-text)] [text-shadow:0_0_28px_rgba(129,140,248,0.25)] sm:text-2xl">
             {loading
               ? "…"
               : payload
@@ -187,7 +187,7 @@ export function WalletProfile({ walletAddress }: Props) {
                     height={32}
                   />
                 ) : (
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--game-cyan-dim)] bg-[rgba(65,245,240,0.08)] text-[10px] font-black text-[var(--game-cyan)]">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--game-cyan-dim)] bg-[rgba(129,140,248,0.08)] text-[10px] font-black text-[var(--game-cyan)]">
                     {p.symbol.slice(0, 2).toUpperCase()}
                   </span>
                 )}
@@ -226,7 +226,7 @@ export function WalletProfile({ walletAddress }: Props) {
 
       {clipboardNotice ? (
         <div
-          className="pointer-events-none fixed bottom-6 left-1/2 z-[70] max-w-[min(90vw,20rem)] -translate-x-1/2 rounded-sm border border-[var(--game-cyan)]/50 bg-[rgba(4,2,12,0.92)] px-4 py-3 text-center shadow-[0_0_32px_rgba(65,245,240,0.2)] backdrop-blur-sm"
+          className="pointer-events-none fixed bottom-6 left-1/2 z-[70] max-w-[min(90vw,20rem)] -translate-x-1/2 rounded-sm border border-[var(--game-cyan)]/50 bg-[rgba(4,2,12,0.92)] px-4 py-3 text-center shadow-[0_0_32px_rgba(129,140,248,0.2)] backdrop-blur-sm"
           role="status"
           aria-live="polite"
         >

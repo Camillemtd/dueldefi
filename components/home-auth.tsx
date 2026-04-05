@@ -76,13 +76,13 @@ export function HomeAuth() {
         >
           <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
             <div
-              className="flex size-9 shrink-0 items-center justify-center rounded-sm border-2 border-[var(--game-cyan)] bg-[linear-gradient(145deg,rgba(65,245,240,0.2),rgba(255,61,154,0.12))] font-[family-name:var(--font-orbitron)] text-sm font-black text-[var(--game-amber)] shadow-[0_0_14px_rgba(65,245,240,0.25)]"
+              className="flex size-9 shrink-0 items-center justify-center rounded-sm border-2 border-[var(--game-cyan)] bg-[linear-gradient(145deg,rgba(129,140,248,0.2),rgba(251,191,36,0.12))] font-[family-name:var(--font-orbitron)] text-sm font-black text-[var(--game-amber)] shadow-[0_0_14px_rgba(129,140,248,0.25)]"
               aria-hidden
             >
               {initial}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase tracking-wide text-[var(--game-text)] [text-shadow:0_0_24px_rgba(65,245,240,0.35)]">
+              <p className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase tracking-wide text-[var(--game-text)] [text-shadow:0_0_24px_rgba(129,140,248,0.35)]">
                 {user.username}
               </p>
               {shortAddr ? (
@@ -108,13 +108,13 @@ export function HomeAuth() {
         {/* ── Compact Duel CTA ── */}
         <Link
           href="/duel/new"
-          className="group relative block w-full overflow-hidden rounded-sm border-2 border-[var(--game-magenta)] bg-[linear-gradient(180deg,rgba(255,61,154,0.22),rgba(20,8,40,0.98))] px-5 py-5 text-center shadow-[0_0_40px_rgba(255,61,154,0.35),inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:brightness-110 hover:shadow-[0_0_56px_rgba(255,61,154,0.45)]"
+          className="group relative block w-full overflow-hidden rounded-sm border-2 border-[var(--game-magenta)] bg-[linear-gradient(180deg,rgba(251,191,36,0.22),rgba(20,8,40,0.98))] px-5 py-5 text-center shadow-[0_0_40px_rgba(251,191,36,0.35),inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:brightness-110 hover:shadow-[0_0_56px_rgba(251,191,36,0.45)]"
         >
           <span className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(-55deg,transparent,transparent_6px,rgba(255,255,255,0.02)_6px,rgba(255,255,255,0.02)_7px)] opacity-60" />
           <span className="relative font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.45em] text-[var(--game-amber)]">
             Enter arena
           </span>
-          <span className="relative mt-1 block font-[family-name:var(--font-orbitron)] text-2xl font-black uppercase tracking-[0.15em] text-[var(--game-magenta)] [text-shadow:0_0_32px_rgba(255,61,154,0.75)] sm:text-3xl">
+          <span className="relative mt-1 block font-[family-name:var(--font-orbitron)] text-2xl font-black uppercase tracking-[0.15em] text-[var(--game-amber)] [text-shadow:0_0_28px_rgba(252,211,77,0.9),0_0_48px_rgba(251,191,36,0.55)] sm:text-3xl">
             Duel
           </span>
           <span className="relative mt-1 block text-xs text-[var(--game-text-muted)]">

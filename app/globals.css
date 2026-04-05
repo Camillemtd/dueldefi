@@ -8,16 +8,18 @@ html {
 }
 
 :root {
-  --game-bg: #06030d;
-  --game-bg-elevated: rgba(14, 8, 28, 0.88);
-  --game-cyan: #41f5f0;
-  --game-cyan-dim: rgba(65, 245, 240, 0.32);
-  --game-magenta: #ff3d9a;
-  --game-magenta-dim: rgba(255, 61, 154, 0.4);
-  --game-amber: #ffc84a;
+  /* DA globale : indigo (accent principal) + or / ambre (accent secondaire). */
+  --game-bg: #06040c;
+  --game-bg-elevated: rgba(12, 10, 26, 0.92);
+  /* Noms historiques : --game-cyan = indigo, --game-magenta = ambre. */
+  --game-cyan: #818cf8;
+  --game-cyan-dim: rgba(129, 140, 248, 0.45);
+  --game-magenta: #fbbf24;
+  --game-magenta-dim: rgba(251, 191, 36, 0.4);
+  --game-amber: #fcd34d;
   --game-danger: #ff4466;
-  --game-text: #eef8ff;
-  --game-text-muted: rgba(238, 248, 255, 0.55);
+  --game-text: #f4f4f5;
+  --game-text-muted: rgba(244, 244, 245, 0.52);
   --background: var(--game-bg);
   --foreground: var(--game-text);
 }
@@ -40,8 +42,9 @@ body {
   position: relative;
   min-height: 100dvh;
   background-image:
-    radial-gradient(ellipse 120% 70% at 50% -15%, rgba(110, 40, 180, 0.42), transparent 52%),
-    linear-gradient(185deg, #040208 0%, #0c0618 42%, #030106 100%);
+    radial-gradient(ellipse 120% 70% at 50% -18%, rgba(99, 102, 241, 0.26), transparent 50%),
+    radial-gradient(ellipse 80% 50% at 100% 20%, rgba(251, 191, 36, 0.1), transparent 45%),
+    linear-gradient(185deg, #040208 0%, #0a0818 42%, #030106 100%);
 }
 
 .game-arena::before {
@@ -50,10 +53,10 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.35;
+  opacity: 0.32;
   background-image:
-    linear-gradient(rgba(65, 245, 240, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(65, 245, 240, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(129, 140, 248, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(251, 191, 36, 0.032) 1px, transparent 1px);
   background-size: 40px 40px;
   mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, black 15%, transparent 75%);
 }
@@ -82,8 +85,8 @@ body {
 /* Compte à rebours plein écran type boss fight */
 .game-countdown-overlay {
   background:
-    radial-gradient(circle at 50% 45%, rgba(255, 61, 154, 0.18), transparent 55%),
-    radial-gradient(circle at 50% 55%, rgba(65, 245, 240, 0.12), transparent 50%),
+    radial-gradient(circle at 50% 45%, rgba(99, 102, 241, 0.26), transparent 55%),
+    radial-gradient(circle at 50% 55%, rgba(251, 191, 36, 0.1), transparent 50%),
     rgba(2, 0, 8, 0.92);
 }
 
@@ -94,8 +97,9 @@ body {
   line-height: 1;
   color: var(--game-amber);
   text-shadow:
-    0 0 20px rgba(255, 200, 74, 0.9),
-    0 0 60px rgba(255, 61, 154, 0.45);
+    0 0 26px rgba(252, 211, 77, 0.95),
+    0 0 56px rgba(251, 191, 36, 0.65),
+    0 0 88px rgba(234, 179, 8, 0.35);
   animation: game-pulse-num 0.85s ease-in-out infinite;
 }
 
@@ -169,17 +173,17 @@ body {
   animation: duel-live-pulse-flat 1s ease-in-out infinite;
 }
 
-/* Bandeau VS duel : halo ambre / or */
+/* Bandeau VS duel : halo indigo + touche or */
 @keyframes duel-vs-glow {
   0%,
   100% {
-    filter: drop-shadow(0 0 10px rgb(251 191 36 / 0.45))
-      drop-shadow(0 0 22px rgb(250 204 21 / 0.2));
+    filter: drop-shadow(0 0 12px rgb(129 140 248 / 0.55))
+      drop-shadow(0 0 24px rgb(251 191 36 / 0.22));
     opacity: 1;
   }
   50% {
-    filter: drop-shadow(0 0 16px rgb(253 224 71 / 0.65))
-      drop-shadow(0 0 32px rgb(234 179 8 / 0.35));
+    filter: drop-shadow(0 0 18px rgb(165 180 252 / 0.7))
+      drop-shadow(0 0 36px rgb(253 224 71 / 0.28));
     opacity: 0.92;
   }
 }

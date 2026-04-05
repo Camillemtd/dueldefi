@@ -121,7 +121,7 @@ export function WalletWithdrawModal({
       onClick={onClose}
     >
       <div
-        className={`${gamePanel} ${gamePanelTopAccent} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-[0_0_48px_rgba(65,245,240,0.15)]`}
+        className={`${gamePanel} ${gamePanelTopAccent} max-h-[90vh] w-full max-w-md overflow-y-auto shadow-[0_0_48px_rgba(129,140,248,0.15)]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-b border-[var(--game-cyan-dim)]/50 px-5 py-4 sm:px-6">
@@ -213,7 +213,7 @@ export function WalletWithdrawModal({
           ) : null}
 
           {txHash ? (
-            <div className="rounded-sm border border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] px-3 py-2 text-sm text-[var(--game-cyan)]">
+            <div className="rounded-sm border border-[var(--game-cyan)]/40 bg-[rgba(129,140,248,0.08)] px-3 py-2 text-sm text-[var(--game-cyan)]">
               <p className="font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-wider">
                 Transaction sent
               </p>

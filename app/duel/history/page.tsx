@@ -63,7 +63,7 @@ function borderForResult(r: HistoryRow["yourResult"]): string {
     case "loss":
       return "border-2 border-red-500/65 shadow-[0_0_24px_rgba(248,113,113,0.12)]";
     case "tie":
-      return "border-2 border-amber-500/60 shadow-[0_0_20px_rgba(251,191,36,0.12)]";
+      return "border-2 border-indigo-500/60 shadow-[0_0_20px_rgba(129,140,248,0.14)]";
     default:
       return "border-2 border-[var(--game-cyan-dim)]";
   }
@@ -241,7 +241,7 @@ export default function DuelHistoryPage() {
               </p>
             ) : null}
             <dl className="mt-4 grid gap-3 font-[family-name:var(--font-share-tech)] text-sm text-[var(--game-text)] sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-sm border border-[var(--game-cyan-dim)]/40 bg-[rgba(65,245,240,0.06)] px-3 py-2">
+              <div className="rounded-sm border border-[var(--game-cyan-dim)]/40 bg-[rgba(129,140,248,0.06)] px-3 py-2">
                 <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--game-text-muted)]">
                   Duels (after pseudo filter)
                 </dt>
@@ -261,11 +261,11 @@ export default function DuelHistoryPage() {
                 </dt>
                 <dd className="mt-1 text-lg font-bold tabular-nums text-red-300">{stats.losses}</dd>
               </div>
-              <div className="rounded-sm border border-amber-500/35 bg-[rgba(251,191,36,0.07)] px-3 py-2">
-                <dt className="text-[10px] font-bold uppercase tracking-wider text-amber-400/90">
+              <div className="rounded-sm border border-indigo-500/35 bg-[rgba(129,140,248,0.08)] px-3 py-2">
+                <dt className="text-[10px] font-bold uppercase tracking-wider text-indigo-400/90">
                   Win rate
                 </dt>
-                <dd className="mt-1 text-lg font-bold tabular-nums text-amber-200">
+                <dd className="mt-1 text-lg font-bold tabular-nums text-indigo-200">
                   {stats.winRatePct != null ? `${stats.winRatePct}%` : "—"}
                   <span className="ml-1 text-[10px] font-normal normal-case text-[var(--game-text-muted)]">
                     (wins / wins+losses)

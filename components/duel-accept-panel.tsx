@@ -670,7 +670,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
       ) : null}
 
       {balanceCoversStake ? (
-        <p className="rounded-sm border border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.1)] px-3 py-2 text-sm font-medium text-[var(--game-cyan)]">
+        <p className="rounded-sm border border-[var(--game-cyan)]/40 bg-[rgba(129,140,248,0.1)] px-3 py-2 text-sm font-medium text-[var(--game-cyan)]">
           Balance updated: USDC is visible on-chain for this stake — you can enter the arena.
         </p>
       ) : null}
@@ -683,7 +683,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
 
       {confirmingUsdc ? (
         <p
-          className={`${gameMuted} rounded-sm border border-[var(--game-cyan)]/35 bg-[rgba(65,245,240,0.08)] px-3 py-2 font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider text-[var(--game-cyan)]`}
+          className={`${gameMuted} rounded-sm border border-[var(--game-cyan)]/35 bg-[rgba(129,140,248,0.08)] px-3 py-2 font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider text-[var(--game-cyan)]`}
         >
           Syncing USDC balance on-chain — faucet transaction confirming…
         </p>
@@ -738,7 +738,7 @@ export function DuelAcceptPanel({ duelId }: Props) {
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000);
                           }}
-                          className="shrink-0 rounded-sm border border-[var(--game-cyan-dim)]/50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--game-cyan)] transition hover:bg-[rgba(65,245,240,0.1)]"
+                          className="shrink-0 rounded-sm border border-[var(--game-cyan-dim)]/50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--game-cyan)] transition hover:bg-[rgba(129,140,248,0.1)]"
                         >
                           {copied ? "Copied" : "Copy"}
                         </button>

@@ -961,7 +961,7 @@ export function DuelPrepareView() {
                   <div
                     className={`${duelLiveSoberShell} shrink-0 px-3 py-4 text-center sm:px-5 sm:py-5 md:py-6`}
                   >
-                    <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em] text-amber-400/80 sm:text-[10px]">
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em] text-indigo-400/85 sm:text-[10px]">
                       Time left (duel)
                     </p>
                     <p
@@ -1011,19 +1011,19 @@ export function DuelPrepareView() {
                 <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
                   <div className="relative grid shrink-0 items-center gap-1.5 sm:gap-2 lg:grid-cols-[1fr_auto_1fr]">
                     <div
-                      className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-px -translate-y-1/2 bg-gradient-to-r from-amber-400/55 via-amber-200/35 to-indigo-500/50 opacity-85"
+                      className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-px -translate-y-1/2 bg-gradient-to-r from-indigo-500/55 via-indigo-300/35 to-amber-400/50 opacity-85"
                       aria-hidden
                     />
-                    <p className="relative z-10 truncate text-center font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-amber-100 [text-shadow:0_0_16px_rgba(251,191,36,0.4)] sm:text-lg">
+                    <p className="relative z-10 truncate text-center font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-indigo-100 [text-shadow:0_0_16px_rgba(129,140,248,0.42)] sm:text-lg">
                       {myTradePseudo}
                     </p>
                     <p
-                      className="duel-vs-mark relative z-10 bg-gradient-to-b from-amber-100 via-amber-400 to-yellow-600 bg-clip-text text-center font-[family-name:var(--font-orbitron)] text-2xl font-black italic tabular-nums text-transparent sm:text-3xl lg:px-1"
+                      className="duel-vs-mark relative z-10 bg-gradient-to-b from-indigo-200 via-indigo-400 to-amber-500 bg-clip-text text-center font-[family-name:var(--font-orbitron)] text-2xl font-black italic tabular-nums text-transparent sm:text-3xl lg:px-1"
                       aria-label="versus"
                     >
                       VS
                     </p>
-                    <p className="relative z-10 truncate text-center font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-indigo-100 [text-shadow:0_0_16px_rgba(129,140,248,0.42)] sm:text-lg">
+                    <p className="relative z-10 truncate text-center font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-amber-100 [text-shadow:0_0_16px_rgba(251,191,36,0.4)] sm:text-lg">
                       {opponentTradePseudo}
                     </p>
                   </div>
@@ -1040,11 +1040,11 @@ export function DuelPrepareView() {
                         last tick ~1s (or last known % if a position closed early).
                       </p>
                       <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-                        <div className="rounded-sm border border-zinc-600/40 border-l-amber-500/65 bg-zinc-950/60 p-3 shadow-[inset_3px_0_0_0_rgba(251,191,36,0.4)] sm:p-4">
-                          <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-amber-400/95">
+                        <div className="rounded-sm border border-zinc-600/40 border-l-indigo-500/65 bg-zinc-950/60 p-3 shadow-[inset_3px_0_0_0_rgba(129,140,248,0.4)] sm:p-4">
+                          <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-indigo-400/95">
                             You
                           </p>
-                          <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-amber-50 sm:text-base">
+                          <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-indigo-50 sm:text-base">
                             {myTradePseudo}
                           </p>
                           <p className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl font-bold tabular-nums text-emerald-400/90 sm:text-3xl">
@@ -1054,11 +1054,11 @@ export function DuelPrepareView() {
                             PnL USDC: {formatOutcomeUsdc(effectivePnlOutcome.myPnlUsdc)}
                           </p>
                         </div>
-                        <div className="rounded-sm border border-zinc-600/40 border-l-indigo-500/65 bg-zinc-950/60 p-3 shadow-[inset_3px_0_0_0_rgba(129,140,248,0.4)] sm:p-4">
-                          <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-indigo-400/95">
+                        <div className="rounded-sm border border-zinc-600/40 border-l-amber-500/65 bg-zinc-950/60 p-3 shadow-[inset_3px_0_0_0_rgba(251,191,36,0.4)] sm:p-4">
+                          <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-amber-400/95">
                             Opponent
                           </p>
-                          <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-indigo-50 sm:text-base">
+                          <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-amber-50 sm:text-base">
                             {opponentTradePseudo}
                           </p>
                           <p className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl font-bold tabular-nums text-rose-400/90 sm:text-3xl">
@@ -1270,7 +1270,7 @@ export function DuelPrepareView() {
                 </button>
               </div>
             ) : (
-              <div className="rounded-sm border-2 border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] px-4 py-4 text-sm">
+              <div className="rounded-sm border-2 border-[var(--game-cyan)]/40 bg-[rgba(129,140,248,0.08)] px-4 py-4 text-sm">
                 <p className="font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-cyan)]">
                   Ready locked in
                 </p>
@@ -1322,7 +1322,7 @@ export function DuelPrepareView() {
 
         {duel.bothReady && prepOverlayNum !== null ? (
           <div className="game-countdown-overlay fixed inset-0 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
-            <p className="mb-6 font-[family-name:var(--font-orbitron)] text-[10px] font-black uppercase tracking-[0.5em] text-[var(--game-magenta)] [text-shadow:0_0_16px_rgba(255,61,154,0.6)]">
+            <p className="mb-6 font-[family-name:var(--font-orbitron)] text-[10px] font-black uppercase tracking-[0.5em] text-[var(--game-amber)] [text-shadow:0_0_20px_rgba(252,211,77,0.75),0_0_40px_rgba(251,191,36,0.45)]">
               Engage
             </p>
             <p className="game-countdown-num tabular-nums">{prepOverlayNum}</p>
@@ -1354,7 +1354,7 @@ export function DuelPrepareView() {
                 type="button"
                 disabled={execLoading}
                 onClick={() => void onRetrySign()}
-                className="w-full rounded-sm border-2 border-[var(--game-magenta)] bg-transparent py-2.5 text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)] transition enabled:hover:bg-[rgba(255,61,154,0.12)] disabled:opacity-50"
+                className="w-full rounded-sm border-2 border-[var(--game-magenta)] bg-transparent py-2.5 text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)] transition enabled:hover:bg-[rgba(251,191,36,0.12)] disabled:opacity-50"
               >
                 Retry signing
               </button>

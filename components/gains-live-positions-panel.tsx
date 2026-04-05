@@ -52,7 +52,7 @@ type SparklineProps = {
   compact?: boolean;
   /** Étire le SVG sur la hauteur du parent (duel live plein écran). */
   fillHeight?: boolean;
-  /** Vert / rouge sobre au lieu du cyan / magenta. */
+  /** Vert / rouge sobre (live duel) au lieu des accents indigo / or. */
   sober?: boolean;
 };
 
@@ -107,8 +107,8 @@ function PnlSparkline({
       ? "drop-shadow-[0_0_8px_rgba(34,197,94,0.25)]"
       : "drop-shadow-[0_0_8px_rgba(248,113,113,0.25)]"
     : positive
-      ? "drop-shadow-[0_0_6px_rgba(65,245,240,0.35)]"
-      : "drop-shadow-[0_0_6px_rgba(255,61,154,0.35)]";
+      ? "drop-shadow-[0_0_6px_rgba(129,140,248,0.35)]"
+      : "drop-shadow-[0_0_6px_rgba(251,191,36,0.35)]";
 
   if (points.length < 2) {
     const emptyH = compact ? 36 : 52;
@@ -199,7 +199,7 @@ type CardProps = {
   expandChart?: boolean;
   /** Style sobre + bordure verte/rouge animée selon le mouvement du PnL. */
   liveDuelVisuals?: boolean;
-  /** Colonne duel : identité joueur (ambre/or = toi, indigo = adversaire). */
+  /** Colonne duel : identité joueur (indigo = toi, ambre = adversaire). */
   duelPlayerSide?: "my" | "opponent";
   /** Nombre de positions dans ce panneau : 1 → Close en bas ; 2+ → Close en coin (duel live compact). */
   positionStackCount?: number;
@@ -288,27 +288,27 @@ function PositionCard({
 
   const duelLiveBg =
     liveDuelVisuals && duelPlayerSide === "my"
-      ? "bg-[linear-gradient(165deg,rgba(251,191,36,0.11),rgba(9,9,11,0.99)_46%,rgba(35,28,10,0.94))]"
+      ? "bg-[linear-gradient(165deg,rgba(129,140,248,0.11),rgba(9,9,11,0.99)_46%,rgba(18,18,40,0.94))]"
       : liveDuelVisuals && duelPlayerSide === "opponent"
-        ? "bg-[linear-gradient(165deg,rgba(129,140,248,0.11),rgba(9,9,11,0.99)_46%,rgba(18,18,40,0.94))]"
+        ? "bg-[linear-gradient(165deg,rgba(251,191,36,0.11),rgba(9,9,11,0.99)_46%,rgba(35,28,10,0.94))]"
         : liveDuelVisuals
           ? "bg-[linear-gradient(165deg,rgba(24,24,27,0.97),rgba(9,9,11,0.99)_48%,rgba(24,24,27,0.95))]"
           : "";
 
   const liveCardLabelClass =
     liveDuelVisuals && duelPlayerSide === "my"
-      ? "text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/95"
+      ? "text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-400/95"
       : liveDuelVisuals && duelPlayerSide === "opponent"
-        ? "text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-400/95"
+        ? "text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/95"
         : liveDuelVisuals
           ? "text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500"
           : "";
 
   const liveTitleClass =
     liveDuelVisuals && duelPlayerSide === "my"
-      ? "text-amber-50 [text-shadow:0_0_18px_rgba(251,191,36,0.35)]"
+      ? "text-indigo-100 [text-shadow:0_0_18px_rgba(129,140,248,0.35)]"
       : liveDuelVisuals && duelPlayerSide === "opponent"
-        ? "text-indigo-100 [text-shadow:0_0_18px_rgba(129,140,248,0.32)]"
+        ? "text-amber-50 [text-shadow:0_0_18px_rgba(251,191,36,0.32)]"
         : "";
 
   /** Duel live + compact : coin seulement si plusieurs cartes ; une seule → footer en bas comme avant. */
@@ -320,7 +320,7 @@ function PositionCard({
       className={`relative flex min-h-0 flex-col overflow-hidden rounded-sm border-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${compact || expandChart ? "h-full" : ""} ${compact ? "p-2.5" : "p-4"} ${
         liveDuelVisuals
           ? `duel-live-card border-zinc-600/40 ${duelLiveBg} ${trendClass || "duel-live-card--flat"}`
-          : "border-[var(--game-cyan-dim)] bg-[linear-gradient(165deg,rgba(65,245,240,0.08),rgba(4,2,12,0.92)_45%,rgba(255,61,154,0.05))]"
+          : "border-[var(--game-cyan-dim)] bg-[linear-gradient(165deg,rgba(129,140,248,0.08),rgba(4,2,12,0.92)_45%,rgba(251,191,36,0.05))]"
       }`}
     >
       {compactLiveCloseUi ? (
@@ -336,7 +336,7 @@ function PositionCard({
         </button>
       ) : null}
       <div
-        className={`pointer-events-none absolute inset-0 ${liveDuelVisuals ? "bg-[repeating-linear-gradient(-75deg,transparent,transparent_14px,rgba(255,255,255,0.02)_14px,rgba(255,255,255,0.02)_15px)]" : "bg-[repeating-linear-gradient(-75deg,transparent,transparent_14px,rgba(65,245,240,0.025)_14px,rgba(65,245,240,0.025)_15px)]"}`}
+        className={`pointer-events-none absolute inset-0 ${liveDuelVisuals ? "bg-[repeating-linear-gradient(-75deg,transparent,transparent_14px,rgba(255,255,255,0.02)_14px,rgba(255,255,255,0.02)_15px)]" : "bg-[repeating-linear-gradient(-75deg,transparent,transparent_14px,rgba(129,140,248,0.025)_14px,rgba(129,140,248,0.025)_15px)]"}`}
       />
       <div className={`relative flex min-h-0 flex-1 flex-col ${compact ? "gap-2" : "gap-3"}`}>
         <div
@@ -365,26 +365,26 @@ function PositionCard({
               className={`rounded-sm border px-2.5 py-1 font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-wider ${
                 liveDuelVisuals && duelPlayerSide === "my"
                   ? long
-                    ? "border-amber-400/60 bg-amber-950/40 text-amber-100"
-                    : "border-amber-800/50 bg-amber-950/20 text-amber-200/85"
+                    ? "border-indigo-400/55 bg-indigo-950/45 text-indigo-100"
+                    : "border-indigo-800/50 bg-indigo-950/25 text-indigo-200/85"
                   : liveDuelVisuals && duelPlayerSide === "opponent"
                     ? long
-                      ? "border-indigo-400/55 bg-indigo-950/45 text-indigo-100"
-                      : "border-indigo-800/50 bg-indigo-950/25 text-indigo-200/85"
+                      ? "border-amber-400/60 bg-amber-950/40 text-amber-100"
+                      : "border-amber-800/50 bg-amber-950/20 text-amber-200/85"
                     : liveDuelVisuals
                       ? long
                         ? "border-zinc-500/40 bg-zinc-800/40 text-zinc-200"
                         : "border-zinc-600/40 bg-zinc-900/50 text-zinc-400"
                       : long
-                        ? "border-[var(--game-cyan)]/60 bg-[rgba(65,245,240,0.12)] text-[var(--game-cyan)]"
-                        : "border-[var(--game-magenta)]/60 bg-[rgba(255,61,154,0.12)] text-[var(--game-magenta)]"
+                        ? "border-[var(--game-cyan)]/60 bg-[rgba(129,140,248,0.12)] text-[var(--game-cyan)]"
+                        : "border-[var(--game-magenta)]/60 bg-[rgba(251,191,36,0.12)] text-[var(--game-magenta)]"
               }`}
             >
               {long ? "Long" : "Short"}
             </span>
             <span
               className={`rounded-sm border px-2.5 py-1 font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-wider ${
-                liveDuelVisuals && duelPlayerSide === "opponent"
+                liveDuelVisuals && duelPlayerSide === "my"
                   ? "border-indigo-500/45 bg-indigo-950/35 text-indigo-200/95 [text-shadow:0_0_10px_rgba(129,140,248,0.35)]"
                   : liveDuelVisuals
                     ? "border-amber-500/45 bg-amber-950/35 text-amber-200/95 [text-shadow:0_0_10px_rgba(251,191,36,0.35)]"
@@ -689,16 +689,16 @@ export function GainsLivePositionsPanel({
 
   const duelColumnAccent =
     liveDuelVisuals && duelPlayerSide === "my"
-      ? "border-l-[3px] border-l-amber-400/70 shadow-[inset_4px_0_20px_-4px_rgba(251,191,36,0.14)]"
+      ? "border-l-[3px] border-l-indigo-400/70 shadow-[inset_4px_0_20px_-4px_rgba(129,140,248,0.14)]"
       : liveDuelVisuals && duelPlayerSide === "opponent"
-        ? "border-l-[3px] border-l-indigo-400/70 shadow-[inset_4px_0_20px_-4px_rgba(129,140,248,0.14)]"
+        ? "border-l-[3px] border-l-amber-400/70 shadow-[inset_4px_0_20px_-4px_rgba(251,191,36,0.14)]"
         : "";
 
   const panelTitleClass =
     liveDuelVisuals && duelPlayerSide === "my"
-      ? "text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/95"
+      ? "text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-400/95"
       : liveDuelVisuals && duelPlayerSide === "opponent"
-        ? "text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-400/95"
+        ? "text-[9px] font-bold uppercase tracking-[0.2em] text-amber-400/95"
         : liveDuelVisuals
           ? "text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500"
           : "";
@@ -726,7 +726,7 @@ export function GainsLivePositionsPanel({
       </div>
       {duelEnded ? (
         <p
-          className={`rounded-sm border font-[family-name:var(--font-share-tech)] text-[var(--game-text)] ${liveDuelVisuals ? "border-zinc-600/50 bg-zinc-900/50" : "border-[var(--game-magenta)]/40 bg-[rgba(255,61,154,0.08)]"} ${compact ? "px-2 py-1 text-[9px] leading-tight" : "px-3 py-2 text-[11px]"}`}
+          className={`rounded-sm border font-[family-name:var(--font-share-tech)] text-[var(--game-text)] ${liveDuelVisuals ? "border-zinc-600/50 bg-zinc-900/50" : "border-[var(--game-magenta)]/40 bg-[rgba(251,191,36,0.08)]"} ${compact ? "px-2 py-1 text-[9px] leading-tight" : "px-3 py-2 text-[11px]"}`}
         >
           Timer ended: this duel’s positions are treated as closed on the server.
         </p>

@@ -227,9 +227,9 @@ export function TokenPicker({
                 onClick={() => handleSelect(pos)}
                 className={`flex w-full items-center gap-3 rounded-sm border px-3 py-2.5 text-left text-sm transition ${
                   isSelected
-                    ? "border-[var(--game-cyan)] bg-[rgba(65,245,240,0.1)]"
+                    ? "border-[var(--game-cyan)] bg-[rgba(129,140,248,0.1)]"
                     : hasEnough
-                      ? "border-[var(--game-cyan-dim)]/30 bg-transparent hover:border-[var(--game-cyan-dim)] hover:bg-[rgba(65,245,240,0.04)]"
+                      ? "border-[var(--game-cyan-dim)]/30 bg-transparent hover:border-[var(--game-cyan-dim)] hover:bg-[rgba(129,140,248,0.04)]"
                       : "cursor-not-allowed border-[var(--game-cyan-dim)]/10 bg-transparent opacity-40"
                 }`}
               >

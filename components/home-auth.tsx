@@ -11,14 +11,11 @@ import {
   gamePanelTopAccent,
   gameTabActive,
   gameTabRow,
-  gameTitle,
 } from "@/components/game-ui"
 import { LoginForm } from "@/components/login-form"
 import { SignupForm } from "@/components/signup-form"
 import { HubPlayModeMenu } from "@/components/hub-play-mode-menu"
 import { OpenDuelsMenu } from "@/components/open-duels-menu"
-import { TokenSwapTest } from "@/components/token-swap-test"
-import { UniswapMainnetDemo } from "@/components/uniswap-mainnet-demo"
 import { WalletProfile } from "@/components/wallet-profile"
 
 type MeUser = {
@@ -67,80 +64,87 @@ export function HomeAuth() {
 
   if (user) {
     const initial = user.username.trim().charAt(0).toUpperCase() || "?"
+    const shortAddr = user.walletAddress
+      ? `${user.walletAddress.slice(0, 6)}…${user.walletAddress.slice(-4)}`
+      : null
 
     return (
-      <div className="flex w-full max-w-2xl flex-col gap-8">
+      <div className="flex w-full max-w-5xl flex-col gap-4">
+        {/* ── Compact profile bar ── */}
         <div
           className={`${gamePanel} ${gamePanelTopAccent} relative overflow-visible`}
         >
-          <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-start sm:justify-between sm:p-8">
-            <div className="flex items-start gap-4">
-              <div
-                className="flex size-16 shrink-0 items-center justify-center rounded-sm border-2 border-[var(--game-cyan)] bg-[linear-gradient(145deg,rgba(65,245,240,0.2),rgba(255,61,154,0.12))] font-[family-name:var(--font-orbitron)] text-2xl font-black text-[var(--game-amber)] shadow-[0_0_24px_rgba(65,245,240,0.25)] sm:size-20 sm:text-3xl"
-                aria-hidden
-              >
-                {initial}
-              </div>
-              <div>
-                <p className={gameLabel}>Fighter profile</p>
-                <p className={`${gameTitle} mt-1 text-2xl sm:text-3xl`}>
-                  {user.username}
+          <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
+            <div
+              className="flex size-9 shrink-0 items-center justify-center rounded-sm border-2 border-[var(--game-cyan)] bg-[linear-gradient(145deg,rgba(65,245,240,0.2),rgba(255,61,154,0.12))] font-[family-name:var(--font-orbitron)] text-sm font-black text-[var(--game-amber)] shadow-[0_0_14px_rgba(65,245,240,0.25)]"
+              aria-hidden
+            >
+              {initial}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase tracking-wide text-[var(--game-text)] [text-shadow:0_0_24px_rgba(65,245,240,0.35)]">
+                {user.username}
+              </p>
+              {shortAddr ? (
+                <p className="font-[family-name:var(--font-share-tech)] text-[11px] text-[var(--game-text-muted)]">
+                  {shortAddr}
                 </p>
-                {user.walletAddress ? (
-                  <p className="mt-2 max-w-md break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
-                    {user.walletAddress}
-                  </p>
-                ) : (
-                  <p className={`${gameMuted} mt-2`}>No wallet on file.</p>
-                )}
-              </div>
+              ) : (
+                <p className="text-[11px] text-[var(--game-text-muted)]">
+                  No wallet
+                </p>
+              )}
             </div>
             <button
               type="button"
               onClick={() => void logout()}
-              className={`${gameBtnGhost} self-start sm:!w-auto`}
+              className={`${gameBtnGhost} shrink-0`}
             >
               Log out
             </button>
           </div>
         </div>
 
-        <div className={`${gamePanel} ${gamePanelTopAccent} p-6 sm:p-8`}>
-          <p className={`${gameTitle} mb-4 text-lg sm:text-xl`}>Menu</p>
-          <HubPlayModeMenu />
-          <div className="mt-4">
-            <Link
-              href="/duel/history"
-              className={`${gameBtnGhost} inline-flex !w-full border-[var(--game-cyan-dim)] text-[var(--game-cyan)] sm:!w-auto`}
-            >
-              Duel history
-            </Link>
-          </div>
-          <OpenDuelsMenu />
-        </div>
-
+        {/* ── Compact Duel CTA ── */}
         <Link
           href="/duel/new"
-          className="group relative block w-full overflow-hidden rounded-sm border-2 border-[var(--game-magenta)] bg-[linear-gradient(180deg,rgba(255,61,154,0.22),rgba(20,8,40,0.98))] px-6 py-8 text-center shadow-[0_0_40px_rgba(255,61,154,0.35),inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:brightness-110 hover:shadow-[0_0_56px_rgba(255,61,154,0.45)] sm:py-10"
+          className="group relative block w-full overflow-hidden rounded-sm border-2 border-[var(--game-magenta)] bg-[linear-gradient(180deg,rgba(255,61,154,0.22),rgba(20,8,40,0.98))] px-5 py-5 text-center shadow-[0_0_40px_rgba(255,61,154,0.35),inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:brightness-110 hover:shadow-[0_0_56px_rgba(255,61,154,0.45)]"
         >
           <span className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(-55deg,transparent,transparent_6px,rgba(255,255,255,0.02)_6px,rgba(255,255,255,0.02)_7px)] opacity-60" />
-          <span className="relative font-[family-name:var(--font-orbitron)] text-[10px] font-bold uppercase tracking-[0.45em] text-[var(--game-amber)]">
+          <span className="relative font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.45em] text-[var(--game-amber)]">
             Enter arena
           </span>
-          <span className="relative mt-2 block font-[family-name:var(--font-orbitron)] text-3xl font-black uppercase tracking-[0.15em] text-[var(--game-magenta)] [text-shadow:0_0_32px_rgba(255,61,154,0.75)] sm:text-4xl md:text-5xl">
+          <span className="relative mt-1 block font-[family-name:var(--font-orbitron)] text-2xl font-black uppercase tracking-[0.15em] text-[var(--game-magenta)] [text-shadow:0_0_32px_rgba(255,61,154,0.75)] sm:text-3xl">
             Duel
           </span>
-          <span className="relative mt-2 block text-sm text-[var(--game-text-muted)]">
+          <span className="relative mt-1 block text-xs text-[var(--game-text-muted)]">
             Create a match · set stake · invite your opponent
           </span>
         </Link>
 
-        {user.walletAddress ? (
-          <>
-            <TokenSwapTest />
+        {/* ── Two-column content: Menu + Wallet ── */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          {/* Left: Menu & Duels */}
+          <div className="flex flex-col gap-4">
+            <div className={`${gamePanel} ${gamePanelTopAccent} p-4 sm:p-5`}>
+              <HubPlayModeMenu />
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Link
+                  href="/duel/history"
+                  className={`${gameBtnGhost} border-[var(--game-cyan-dim)] text-[var(--game-cyan)]`}
+                >
+                  Duel history
+                </Link>
+              </div>
+              <OpenDuelsMenu />
+            </div>
+          </div>
+
+          {/* Right: Wallet */}
+          {user.walletAddress ? (
             <WalletProfile walletAddress={user.walletAddress} />
-          </>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     )
   }

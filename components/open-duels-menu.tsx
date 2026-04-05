@@ -47,7 +47,7 @@ export function OpenDuelsMenu() {
   }, [load])
 
   return (
-    <div className="mt-6 border-t border-[var(--game-cyan-dim)]/50 pt-6">
+    <div className="mt-4 border-t border-[var(--game-cyan-dim)]/50 pt-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className={gameLabel}>Active duels</p>
         <button

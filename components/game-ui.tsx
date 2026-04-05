@@ -1,3 +1,4 @@
+import Image from "next/image"
 import type { ReactNode } from "react"
 
 /** Game-style panel / terminal screen */
@@ -51,18 +52,21 @@ export function gameTabActive(active: boolean) {
     : "text-[var(--game-text-muted)] hover:text-[var(--game-text)]"
 }
 
+/** Logo depuis `/public/logodefi.png`. Passe `className` avec `h-* w-auto` pour la barre (ex. `h-9 sm:h-10`). */
 export function GameLogo({ className = "" }: { className?: string }) {
+  const hasHeight = /\b(h-|!h-|sm:h-|sm:!h-|md:h-|lg:h-)/.test(className)
+  const defaultSize = hasHeight
+    ? ""
+    : "h-12 w-auto max-w-[min(380px,90vw)] sm:h-14 sm:max-w-[min(440px,92vw)]"
   return (
-    <div
-      className={`font-[family-name:var(--font-orbitron)] text-lg font-black tracking-[0.2em] sm:text-xl ${className}`}
-    >
-      <span className="text-[var(--game-cyan)] [text-shadow:0_0_20px_rgba(129,140,248,0.55)]">
-        Dé
-      </span>
-      <span className="text-[var(--game-magenta)] [text-shadow:0_0_18px_rgba(251,191,36,0.55)]">
-        Fi
-      </span>
-    </div>
+    <Image
+      src="/logodefi.png"
+      alt="DéFi"
+      width={640}
+      height={200}
+      className={`block object-contain object-center ${defaultSize} ${className}`.replace(/\s+/g, " ").trim()}
+      priority
+    />
   )
 }
 

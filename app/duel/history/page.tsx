@@ -146,7 +146,7 @@ export default function DuelHistoryPage() {
     <>
       <GameHudBar>
         <Link href="/" className="shrink-0">
-          <GameLogo className="!text-sm sm:!text-base" />
+          <GameLogo className="h-9 w-auto sm:h-10" />
         </Link>
         <p className="font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--game-text-muted)]">
           History

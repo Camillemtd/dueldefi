@@ -690,7 +690,7 @@ export function DuelPrepareView() {
       <div className="flex w-full flex-none flex-col min-h-dvh">
         <div className="shrink-0">
           <GameHudBar>
-            <GameLogo className="!text-sm" />
+            <GameLogo className="h-8 w-auto sm:h-9" />
           </GameHudBar>
         </div>
         <p className="p-8 text-sm text-[var(--game-danger)]">
@@ -706,7 +706,7 @@ export function DuelPrepareView() {
         <div className="shrink-0">
           <GameHudBar>
             <Link href="/" className="shrink-0">
-              <GameLogo className="!text-sm sm:!text-base" />
+              <GameLogo className="h-9 w-auto sm:h-10" />
             </Link>
           </GameHudBar>
         </div>
@@ -727,7 +727,7 @@ export function DuelPrepareView() {
         <div className="shrink-0">
           <GameHudBar>
             <Link href="/" className="shrink-0">
-              <GameLogo className="!text-sm sm:!text-base" />
+              <GameLogo className="h-9 w-auto sm:h-10" />
             </Link>
           </GameHudBar>
         </div>
@@ -749,7 +749,7 @@ export function DuelPrepareView() {
         <div className="shrink-0">
           <GameHudBar>
             <Link href="/" className="shrink-0">
-              <GameLogo className="!text-sm sm:!text-base" />
+              <GameLogo className="h-9 w-auto sm:h-10" />
             </Link>
           </GameHudBar>
         </div>
@@ -769,7 +769,7 @@ export function DuelPrepareView() {
         <div className="shrink-0">
           <GameHudBar>
             <Link href="/" className="shrink-0">
-              <GameLogo className="!text-sm sm:!text-base" />
+              <GameLogo className="h-9 w-auto sm:h-10" />
             </Link>
           </GameHudBar>
         </div>
@@ -806,7 +806,7 @@ export function DuelPrepareView() {
       <div className="shrink-0">
         <GameHudBar wide={duel.bothReady}>
           <Link href="/" className="shrink-0">
-            <GameLogo className="!text-sm sm:!text-base" />
+            <GameLogo className="h-9 w-auto sm:h-10" />
           </Link>
           <p className="hidden font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.25em] text-[var(--game-text-muted)] sm:block">
             {duelUiLive ? "Live duel" : "Combat loadout"}

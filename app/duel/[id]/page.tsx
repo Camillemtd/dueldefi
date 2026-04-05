@@ -77,7 +77,7 @@ export default async function DuelLobbyPage({ params }: Props) {
     <>
       <GameHudBar>
         <Link href="/" className="shrink-0">
-          <GameLogo className="!text-sm sm:!text-base" />
+          <GameLogo className="h-9 w-auto sm:h-10" />
         </Link>
         <p className="hidden font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.25em] text-[var(--game-text-muted)] sm:block">
           Match lobby

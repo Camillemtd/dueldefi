@@ -107,7 +107,7 @@ export default function NewDuelPage() {
     return (
       <>
         <GameHudBar>
-          <GameLogo className="!text-sm" />
+          <GameLogo className="h-8 w-auto sm:h-9" />
         </GameHudBar>
         <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-16">
           <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-widest`}>
@@ -122,7 +122,7 @@ export default function NewDuelPage() {
     return (
       <>
         <GameHudBar>
-          <GameLogo className="!text-sm" />
+          <GameLogo className="h-8 w-auto sm:h-9" />
         </GameHudBar>
         <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-16">
           <p className={gameMuted}>Sign in to create an arena.</p>
@@ -138,7 +138,7 @@ export default function NewDuelPage() {
     <>
       <GameHudBar>
         <Link href="/" className="shrink-0">
-          <GameLogo className="!text-sm sm:!text-base" />
+          <GameLogo className="h-9 w-auto sm:h-10" />
         </Link>
         <p className="font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.2em] text-[var(--game-text-muted)]">
           Create

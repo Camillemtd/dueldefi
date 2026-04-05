@@ -7,6 +7,10 @@ export const gamePanel =
 export const gamePanelTopAccent =
   "before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-gradient-to-r before:from-[var(--game-magenta)] before:via-[var(--game-cyan)] before:to-[var(--game-magenta)]"
 
+/** Panneau sobre (écran duel live / résultat) — sans cyan–magenta. */
+export const duelLiveSoberShell =
+  "relative overflow-hidden rounded-sm border border-zinc-600/40 bg-zinc-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-sm before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-zinc-500/35"
+
 export const gameInput =
   "w-full rounded-sm border border-[var(--game-cyan-dim)] bg-[rgba(4,2,12,0.9)] px-3 py-2.5 text-sm text-[var(--game-text)] shadow-[inset_0_2px_8px_rgba(0,0,0,0.5)] outline-none transition focus:border-[var(--game-cyan)] focus:shadow-[0_0_18px_rgba(65,245,240,0.22)]"
 
@@ -101,10 +105,20 @@ export function GameVsBanner({
   )
 }
 
-export function GameHudBar({ children }: { children: ReactNode }) {
+export function GameHudBar({
+  children,
+  wide = false,
+}: {
+  children: ReactNode
+  wide?: boolean
+}) {
   return (
     <header className="sticky top-0 z-40 border-b-2 border-[var(--game-cyan-dim)] bg-[rgba(4,2,12,0.88)] px-4 py-3 backdrop-blur-md">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+      <div
+        className={`mx-auto flex w-full items-center justify-between gap-3 ${
+          wide ? "max-w-none" : "max-w-3xl"
+        }`}
+      >
         {children}
       </div>
     </header>

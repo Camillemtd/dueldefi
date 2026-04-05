@@ -4,6 +4,7 @@ import { getSessionFromRequest } from "@/lib/auth/session"
 import { parseDuelTradeConfig, parseReadyState } from "@/lib/db/duel-ready"
 import { findDuelWithPseudos } from "@/lib/db/duels"
 import { findUserById } from "@/lib/db/users"
+import { buildPersistedPnlOutcomeFromDuelRow } from "@/lib/duel/persisted-viewer-outcome"
 import {
   normalizeDuelPlayMode,
   parseStoredGainsChainOptional,
@@ -97,6 +98,8 @@ export async function GET(
       opponentChain ?? myTradeConfig?.gainsChain ?? null
   }
 
+  const persistedPnlOutcome = buildPersistedPnlOutcomeFromDuelRow(duel, viewer)
+
   return NextResponse.json({
     id: duel.id,
     creatorPseudo: duel.creator_pseudo,
@@ -120,5 +123,6 @@ export async function GET(
     creatorChain,
     opponentChain,
     myExecGainsChain,
+    persistedPnlOutcome,
   })
 }

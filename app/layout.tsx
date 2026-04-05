@@ -36,13 +36,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${chakraPetch.variable} ${orbitron.variable} ${shareTechMono.variable} h-full antialiased`}
+      className={`${chakraPetch.variable} ${orbitron.variable} ${shareTechMono.variable} min-h-full antialiased`}
     >
       <body className="min-h-full">
         <PlayModeProvider>
-          <div className="game-arena flex min-h-full flex-col">
+          {/* Pas de flex sur l’arène : évite une hauteur de colonne « figée » au viewport (scroll document bloqué). */}
+          <div className="game-arena relative min-h-dvh w-full">
             <div className="game-scanlines" aria-hidden />
-            <div className="game-content flex flex-1 flex-col">{children}</div>
+            <div className="game-content flex min-h-dvh w-full flex-col">{children}</div>
           </div>
         </PlayModeProvider>
       </body>

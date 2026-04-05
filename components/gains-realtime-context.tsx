@@ -10,6 +10,7 @@ import {
   useState,
 } from "react"
 
+import type { GainsDuelPnlOutcome } from "@/types/duel-pnl-outcome"
 import {
   bestPnlScoreFromPositions,
   gainsPositionHistorySideKey,
@@ -19,6 +20,8 @@ import {
   type GainsPositionUpdate,
   isGainsDuelPositionsSnapshot,
 } from "@/types/gains-api"
+
+export type { GainsDuelPnlOutcome }
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error"
 
@@ -48,16 +51,6 @@ function mergePnlHistory(
   }
 
   return next
-}
-
-export type GainsDuelPnlOutcome = {
-  /** PnL % retenu pour toi (tick ~1 s ou dernier connu si fermeture anticipée). */
-  myPnlPct: number | null
-  opponentPnlPct: number | null
-  myPnlUsdc: number | null
-  opponentPnlUsdc: number | null
-  /** Victoire du point de vue du wallet connecté. */
-  winner: "you" | "opponent" | "tie" | "unknown"
 }
 
 type GainsRealtimeContextValue = {
@@ -254,28 +247,39 @@ export function GainsRealtimeProvider({
         const finalOpp = at1?.opponent ?? lastOpponentScoreRef.current
         const myPct = finalMy?.pct ?? null
         const oppPct = finalOpp?.pct ?? null
+        const myU = finalMy?.pnlUsdc ?? null
+        const oppU = finalOpp?.pnlUsdc ?? null
 
-        let winner: GainsDuelPnlOutcome["winner"] = "unknown"
-        if (myPct != null && oppPct != null) {
-          winner =
-            Math.abs(myPct - oppPct) < 1e-9
-              ? "tie"
-              : myPct > oppPct
-                ? "you"
-                : "opponent"
-        } else if (myPct != null && oppPct == null) {
-          winner = "you"
-        } else if (myPct == null && oppPct != null) {
-          winner = "opponent"
+        const hasAnyScore =
+          (myPct != null && Number.isFinite(myPct)) ||
+          (oppPct != null && Number.isFinite(oppPct)) ||
+          (myU != null && Number.isFinite(myU)) ||
+          (oppU != null && Number.isFinite(oppU))
+
+        if (hasAnyScore) {
+          let winner: GainsDuelPnlOutcome["winner"] = "unknown"
+          if (myPct != null && oppPct != null) {
+            winner =
+              Math.abs(myPct - oppPct) < 1e-9
+                ? "tie"
+                : myPct > oppPct
+                  ? "you"
+                  : "opponent"
+          } else if (myPct != null && oppPct == null) {
+            winner = "you"
+          } else if (myPct == null && oppPct != null) {
+            winner = "opponent"
+          }
+
+          setDuelPnlOutcome({
+            myPnlPct: myPct,
+            opponentPnlPct: oppPct,
+            myPnlUsdc: myU,
+            opponentPnlUsdc: oppU,
+            winner,
+          })
         }
-
-        setDuelPnlOutcome({
-          myPnlPct: myPct,
-          opponentPnlPct: oppPct,
-          myPnlUsdc: finalMy?.pnlUsdc ?? null,
-          opponentPnlUsdc: finalOpp?.pnlUsdc ?? null,
-          winner,
-        })
+        /* Sinon (reconnexion / reload sans refs) : ne pas poser un outcome « unknown » qui masque la DB. */
 
         lastMyScoreRef.current = null
         lastOpponentScoreRef.current = null

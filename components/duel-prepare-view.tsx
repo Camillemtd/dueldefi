@@ -12,15 +12,12 @@ import {
 
 import { GainsLivePositionsPanel } from "@/components/gains-live-positions-panel"
 import { GainsPairPicker } from "@/components/gains-pair-picker"
-import {
-  useGainsRealtime,
-  type GainsDuelPnlOutcome,
-} from "@/components/gains-realtime-context"
+import { useGainsRealtime } from "@/components/gains-realtime-context"
 import { TokenPicker, extractNumericChainId, type SelectedToken } from "@/components/token-picker"
 import {
+  duelLiveSoberShell,
   GameHudBar,
   GameLogo,
-  GameVsBanner,
   gameBtnPrimary,
   gameInput,
   gameLabel,
@@ -31,41 +28,50 @@ import {
   gameSubtitle,
   gameTitle,
 } from "@/components/game-ui"
-import { duelVsBannerForViewer } from "@/lib/duel/viewer-vs-order"
 import {
   gainsPositionHistorySideKey,
   type GainsApiChain,
   type GainsTradingPair,
 } from "@/types/gains-api"
+import type { GainsDuelPnlOutcome } from "@/types/duel-pnl-outcome"
 import type { DuelTradeSideConfig } from "@/types/duel-trade"
 
 const POLL_MS = 1000
 const COUNTDOWN_TOTAL_MS = 3000
 
+/**
+ * Compte à rebours local aligné sur `remainingSeconds` du WS.
+ * La synchro props → state est reportée via `queueMicrotask` pour éviter un setState
+ * synchrone dans le corps de l’effect (React Compiler / eslint).
+ */
 function useDuelWsCountdown(
   serverSeconds: number | null,
   duelTimerEnded: boolean,
 ) {
   const [tick, setTick] = useState<number | null>(null)
+
   useEffect(() => {
-    if (duelTimerEnded) {
-      setTick(0)
-      return
+    const sync = () => {
+      if (duelTimerEnded) {
+        setTick(0)
+        return
+      }
+      if (serverSeconds === null) {
+        setTick(null)
+        return
+      }
+      if (Number.isFinite(serverSeconds)) {
+        setTick(Math.max(0, serverSeconds))
+      }
     }
-    if (serverSeconds === null) {
-      setTick(null)
-      return
-    }
-    if (Number.isFinite(serverSeconds)) {
-      setTick(Math.max(0, serverSeconds))
-    }
+    queueMicrotask(sync)
   }, [serverSeconds, duelTimerEnded])
 
   useEffect(() => {
     if (duelTimerEnded || tick === null || tick <= 0) return
     const id = setInterval(() => {
       setTick((t) => (t != null && t > 0 ? t - 1 : t))
-    }, 1000)
+    }, POLL_MS)
     return () => clearInterval(id)
   }, [tick, duelTimerEnded])
 
@@ -99,6 +105,8 @@ type DuelPayload = {
   /** `execute-trade` déjà enregistré pour le viewer (reload sans re-signer). */
   myTradeOpened: boolean
   myOpenTradeTxHash: string | null
+  /** Résultat persisté en base après fermeture (reload). */
+  persistedPnlOutcome?: GainsDuelPnlOutcome | null
 }
 
 function formatUsdc(raw: string) {
@@ -178,7 +186,11 @@ export function DuelPrepareView() {
   const [duel, setDuel] = useState<DuelPayload | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [nowTick, setNowTick] = useState(() => Date.now())
+  /**
+   * Horloge locale pour le 3-2-1 : `null` au premier rendu (SSR + 1er paint client) pour éviter
+   * tout écart serveur/client (Date.now / useState(Date.now) → mismatch d’hydratation).
+   */
+  const [nowTick, setNowTick] = useState<number | null>(null)
 
   const [pairIndex, setPairIndex] = useState(0)
   const [gainsChain, setGainsChain] = useState<GainsApiChain>("Testnet")
@@ -215,10 +227,26 @@ export function DuelPrepareView() {
     null,
   )
 
+  const duelEndedForUi = duelTimerEnded || Boolean(duel?.duelClosedAt)
+
   const duelCountdownDisplay = useDuelWsCountdown(
     duelRemainingSeconds,
-    duelTimerEnded,
+    duelEndedForUi,
   )
+
+  /**
+   * Après reload, le WS renvoie souvent `remainingSeconds <= 0` sans historique local → un outcome
+   * `{ winner: "unknown", … }` non null qui écrasait `persistedPnlOutcome` via `??`.
+   * Tant que le duel est fermé en base, on affiche le résultat persisté.
+   */
+  const effectivePnlOutcome = useMemo((): GainsDuelPnlOutcome | null => {
+    const fromWs = duelPnlOutcome
+    const fromDb = duel?.persistedPnlOutcome ?? null
+    if (duel?.duelClosedAt != null && fromDb != null) {
+      return fromDb
+    }
+    return fromWs ?? fromDb
+  }, [duelPnlOutcome, duel?.persistedPnlOutcome, duel?.duelClosedAt])
 
   useEffect(() => {
     if (!duelTimerEnded) {
@@ -422,6 +450,10 @@ export function DuelPrepareView() {
     return () => clearInterval(id)
   }, [shouldPollDuel, loadDuel])
 
+  useLayoutEffect(() => {
+    setNowTick(Date.now())
+  }, [])
+
   useEffect(() => {
     if (duelStartSignalAt != null) {
       console.log("[COUNTDOWN-DEBUG] duelStartSignalAt changed, setting nowTick", {
@@ -440,7 +472,7 @@ export function DuelPrepareView() {
   const localCountdownActive =
     duelStartSignalAt != null &&
     duel?.bothReady === true &&
-    (Date.now() - duelStartSignalAt) < COUNTDOWN_TOTAL_MS
+    (nowTick === null || nowTick - duelStartSignalAt < COUNTDOWN_TOTAL_MS)
   const serverPastStartGate = serverPastStartGateRaw && !localCountdownActive
 
   useEffect(() => {
@@ -478,7 +510,7 @@ export function DuelPrepareView() {
 
   const hasLocalStart = duelStartSignalAt != null
   const prepElapsed =
-    duel?.bothReady === true && hasLocalStart
+    duel?.bothReady === true && hasLocalStart && nowTick != null
       ? Math.max(0, nowTick - duelStartSignalAt)
       : 0
 
@@ -650,45 +682,51 @@ export function DuelPrepareView() {
 
   if (!duelId) {
     return (
-      <>
-        <GameHudBar>
-          <GameLogo className="!text-sm" />
-        </GameHudBar>
+      <div className="flex w-full flex-none flex-col min-h-dvh">
+        <div className="shrink-0">
+          <GameHudBar>
+            <GameLogo className="!text-sm" />
+          </GameHudBar>
+        </div>
         <p className="p-8 text-sm text-[var(--game-danger)]">
           Missing duel id.
         </p>
-      </>
+      </div>
     )
   }
 
   if (loading) {
     return (
-      <>
-        <GameHudBar>
-          <Link href="/" className="shrink-0">
-            <GameLogo className="!text-sm sm:!text-base" />
-          </Link>
-        </GameHudBar>
-        <main className="mx-auto max-w-lg flex-1 px-4 py-16">
+      <div className="flex w-full flex-none flex-col min-h-dvh">
+        <div className="shrink-0">
+          <GameHudBar>
+            <Link href="/" className="shrink-0">
+              <GameLogo className="!text-sm sm:!text-base" />
+            </Link>
+          </GameHudBar>
+        </div>
+        <main className="mx-auto max-w-lg flex-1 overflow-y-auto px-4 py-16">
           <p
             className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-widest`}
           >
             Loading…
           </p>
         </main>
-      </>
+      </div>
     )
   }
 
   if (loadError || !duel) {
     return (
-      <>
-        <GameHudBar>
-          <Link href="/" className="shrink-0">
-            <GameLogo className="!text-sm sm:!text-base" />
-          </Link>
-        </GameHudBar>
-        <main className="mx-auto max-w-lg flex-1 space-y-4 px-4 py-16">
+      <div className="flex w-full flex-none flex-col min-h-dvh">
+        <div className="shrink-0">
+          <GameHudBar>
+            <Link href="/" className="shrink-0">
+              <GameLogo className="!text-sm sm:!text-base" />
+            </Link>
+          </GameHudBar>
+        </div>
+        <main className="mx-auto max-w-lg flex-1 space-y-4 overflow-y-auto px-4 py-16">
           <p className="text-sm text-[var(--game-danger)]">
             {loadError ?? "Not found."}
           </p>
@@ -696,53 +734,49 @@ export function DuelPrepareView() {
             Back to hub
           </Link>
         </main>
-      </>
+      </div>
     )
   }
 
   if (!duel.duelFull) {
     return (
-      <>
-        <GameHudBar>
-          <Link href="/" className="shrink-0">
-            <GameLogo className="!text-sm sm:!text-base" />
-          </Link>
-        </GameHudBar>
-        <main className="mx-auto max-w-lg flex-1 space-y-4 px-4 py-16">
+      <div className="flex w-full flex-none flex-col min-h-dvh">
+        <div className="shrink-0">
+          <GameHudBar>
+            <Link href="/" className="shrink-0">
+              <GameLogo className="!text-sm sm:!text-base" />
+            </Link>
+          </GameHudBar>
+        </div>
+        <main className="mx-auto max-w-lg flex-1 space-y-4 overflow-y-auto px-4 py-16">
           <p className={gameMuted}>This duel does not have two players yet.</p>
           <Link href={`/duel/${duelId}`} className={gameLink}>
             Back to lobby
           </Link>
         </main>
-      </>
+      </div>
     )
   }
 
   if (!participant) {
     return (
-      <>
-        <GameHudBar>
-          <Link href="/" className="shrink-0">
-            <GameLogo className="!text-sm sm:!text-base" />
-          </Link>
-        </GameHudBar>
-        <main className="mx-auto max-w-lg flex-1 space-y-4 px-4 py-16">
+      <div className="flex w-full flex-none flex-col min-h-dvh">
+        <div className="shrink-0">
+          <GameHudBar>
+            <Link href="/" className="shrink-0">
+              <GameLogo className="!text-sm sm:!text-base" />
+            </Link>
+          </GameHudBar>
+        </div>
+        <main className="mx-auto max-w-lg flex-1 space-y-4 overflow-y-auto px-4 py-16">
           <p className={gameMuted}>You are not in this duel.</p>
           <Link href="/" className={gameLink}>
             Back to hub
           </Link>
         </main>
-      </>
+      </div>
     )
   }
-
-  const duelVsSides = duelVsBannerForViewer(
-    duel.creatorPseudo,
-    duel.opponentPseudo,
-    duel.viewer,
-    "—",
-    duel.viewerAccountPseudo ?? null,
-  )
 
   const myTradePseudo =
     duel.viewer?.isCreator === true
@@ -753,185 +787,207 @@ export function DuelPrepareView() {
       ? (duel.opponentPseudo ?? "—")
       : duel.creatorPseudo
 
+  /** Après le 3-2-1 (ou rechargement alors que le duel est déjà live en base). */
+  const duelUiLive = prepCountdownDone
+  /** Duel en cours : tout tient dans le viewport (prepare/page en h-dvh). */
+  const fitLiveViewport = duelUiLive && duel.bothReady
+  /** Grille positions : effets PnL + palette sobre (pas après résultat). */
+  const duelLiveActive = prepCountdownDone && !duelEndedForUi
+
   return (
-    <>
-      <GameHudBar>
-        <Link href="/" className="shrink-0">
-          <GameLogo className="!text-sm sm:!text-base" />
-        </Link>
-        <p className="hidden font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.25em] text-[var(--game-text-muted)] sm:block">
-          Combat loadout
-        </p>
-      </GameHudBar>
+    <div
+      className={`flex w-full flex-col ${fitLiveViewport ? "h-dvh max-h-dvh min-h-0 overflow-hidden" : "flex-none"}`}
+    >
+      <div className="shrink-0">
+        <GameHudBar wide={duel.bothReady}>
+          <Link href="/" className="shrink-0">
+            <GameLogo className="!text-sm sm:!text-base" />
+          </Link>
+          <p className="hidden font-[family-name:var(--font-orbitron)] text-[9px] font-bold uppercase tracking-[0.25em] text-[var(--game-text-muted)] sm:block">
+            {duelUiLive ? "Live duel" : "Combat loadout"}
+          </p>
+        </GameHudBar>
+      </div>
 
       <main
-        className={`mx-auto flex flex-1 flex-col gap-6 px-4 py-10 sm:py-14 ${duel.bothReady ? "max-w-6xl" : "max-w-lg"}`}
+        className={`flex w-full flex-col ${fitLiveViewport ? "min-h-0 flex-1" : ""} ${duel.bothReady ? "" : "mx-auto max-w-lg"} ${
+          fitLiveViewport
+            ? "gap-1.5 overflow-hidden px-1 pb-0 pt-1 sm:gap-2 sm:px-2"
+            : duel.bothReady
+              ? "gap-6 px-3 py-6 sm:px-4 sm:py-8"
+              : "gap-6 px-4 py-10 sm:py-14"
+        }`}
       >
-        <div className="space-y-3">
-          <p className={gameSubtitle}>Trade prep</p>
-          <h1 className={`${gameTitle} !text-xl sm:!text-2xl`}>Gains setup</h1>
-          <GameVsBanner
-            left={duelVsSides.left}
-            right={duelVsSides.right}
-            leftTag={duelVsSides.leftTag}
-            rightTag={duelVsSides.rightTag}
-          />
-          <p className={gameMuted}>
-            Stake: {formatUsdc(duel.stakeUsdc)} USDC each · duration{" "}
-            {Math.round(duel.durationSeconds / 60)} min
-          </p>
-        </div>
+        {fitLiveViewport ? (
+          <div className="flex shrink-0 items-end justify-between gap-2 border-b border-zinc-600/30 pb-1">
+            <div className="min-w-0">
+              <p className="font-[family-name:var(--font-orbitron)] text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">
+                Live
+              </p>
+              <h1 className="font-[family-name:var(--font-orbitron)] text-base font-bold tracking-wide text-zinc-100 sm:text-lg">
+                Duel live
+              </h1>
+            </div>
+            <Link
+              href={`/duel/${duelId}`}
+              className="shrink-0 whitespace-nowrap text-[11px] font-semibold text-zinc-400 underline decoration-zinc-600 underline-offset-4 transition hover:text-zinc-200"
+            >
+              ← Lobby
+            </Link>
+          </div>
+        ) : (
+          <div className="shrink-0 space-y-3">
+            <p className={gameSubtitle}>{duelUiLive ? "Live" : "Trade prep"}</p>
+            <h1 className={`${gameTitle} !text-xl sm:!text-2xl`}>
+              {duelUiLive ? "Duel live" : "Gains setup"}
+            </h1>
+          </div>
+        )}
 
-        <div
-          className={`${gamePanel} ${gamePanelTopAccent} space-y-3 p-6 text-sm`}
-        >
-          <p className={gameLabel}>Ready</p>
-          <ul className="space-y-2">
-            <li className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
-                {duel.creatorPseudo}
-              </span>
-              <span
-                className={
-                  duel.readyState[0] === 1
-                    ? "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-cyan)]"
-                    : "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-text-muted)]"
-                }
-              >
-                {duel.readyState[0] === 1 ? "Ready" : "Not ready"}
-              </span>
-            </li>
-            <li className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
-                {duel.opponentPseudo ?? "Opponent"}
-              </span>
-              <span
-                className={
-                  duel.opponentPseudo == null
-                    ? "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-text-muted)]"
-                    : duel.readyState[1] === 1
-                      ? "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-cyan)]"
+        {!duelUiLive ? (
+          <div
+            className={`${gamePanel} ${gamePanelTopAccent} space-y-3 p-6 text-sm`}
+          >
+            <p className={gameLabel}>Ready</p>
+            <ul className="space-y-2">
+              <li className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
+                  {duel.creatorPseudo}
+                </span>
+                <span
+                  className={
+                    duel.readyState[0] === 1
+                      ? "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-emerald-500/90"
                       : "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-text-muted)]"
-                }
-              >
-                {duel.opponentPseudo == null
-                  ? "—"
-                  : duel.readyState[1] === 1
-                    ? "Ready"
-                    : "Not ready"}
-              </span>
-            </li>
-          </ul>
-        </div>
+                  }
+                >
+                  {duel.readyState[0] === 1 ? "Ready" : "Not ready"}
+                </span>
+              </li>
+              <li className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="font-[family-name:var(--font-share-tech)] text-[var(--game-text)]">
+                  {duel.opponentPseudo ?? "Opponent"}
+                </span>
+                <span
+                  className={
+                    duel.opponentPseudo == null
+                      ? "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-text-muted)]"
+                      : duel.readyState[1] === 1
+                        ? "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-emerald-500/90"
+                        : "font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-text-muted)]"
+                  }
+                >
+                  {duel.opponentPseudo == null
+                    ? "—"
+                    : duel.readyState[1] === 1
+                      ? "Ready"
+                      : "Not ready"}
+                </span>
+              </li>
+            </ul>
+          </div>
+        ) : null}
 
         {duel.bothReady ? (
-          <div className="space-y-4">
+          <div
+            className={
+              prepCountdownDone
+                ? "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+                : "space-y-4"
+            }
+          >
             {prepCountdownDone ? (
               <>
-                <div
-                  className={`${gamePanel} ${gamePanelTopAccent} flex flex-wrap items-center justify-between gap-3 p-4`}
-                >
-                  <div>
-                    <p className={gameLabel}>Time left (duel)</p>
+                {duelEndedForUi && effectivePnlOutcome ? (
+                  <div
+                    className={`${duelLiveSoberShell} shrink-0 px-3 py-4 text-center sm:px-5 sm:py-5 md:py-6 ${
+                      effectivePnlOutcome.winner === "you"
+                        ? "border-emerald-800/50 shadow-[0_0_24px_rgba(16,185,129,0.08)]"
+                        : effectivePnlOutcome.winner === "opponent"
+                          ? "border-rose-800/50 shadow-[0_0_24px_rgba(244,63,94,0.08)]"
+                          : effectivePnlOutcome.winner === "tie"
+                            ? "border-zinc-600/50"
+                            : ""
+                    }`}
+                  >
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 sm:text-[10px]">
+                      Duel over · positions closed
+                    </p>
                     <p
-                      className={`font-[family-name:var(--font-orbitron)] text-2xl font-black tabular-nums tracking-wider sm:text-3xl ${
-                        duelTimerEnded || duelCountdownDisplay === 0
-                          ? "text-[var(--game-magenta)]"
-                          : "text-[var(--game-cyan)]"
+                      className={`font-[family-name:var(--font-orbitron)] font-black uppercase leading-[0.92] tracking-[0.08em] text-[clamp(2.75rem,12vmin,5.75rem)] sm:text-[clamp(3.25rem,14vmin,6.5rem)] md:text-[clamp(3.5rem,15vmin,7.25rem)] ${
+                        effectivePnlOutcome.winner === "you"
+                          ? "text-emerald-400/95"
+                          : effectivePnlOutcome.winner === "opponent"
+                            ? "text-rose-400/95"
+                            : effectivePnlOutcome.winner === "tie"
+                              ? "text-zinc-300"
+                              : "text-zinc-500"
                       }`}
                     >
-                      {duelCountdownDisplay === null && !duelTimerEnded ? (
-                        <span className="text-[var(--game-text-muted)]">…</span>
-                      ) : duelTimerEnded || duelCountdownDisplay === 0 ? (
+                      {effectivePnlOutcome.winner === "you"
+                        ? "WIN"
+                        : effectivePnlOutcome.winner === "opponent"
+                          ? "LOSS"
+                          : effectivePnlOutcome.winner === "tie"
+                            ? "TIE"
+                            : "INCOMPLETE"}
+                    </p>
+                    <p className={`${gameMuted} mx-auto mt-1 max-w-md text-[10px] leading-tight sm:text-[11px]`}>
+                      All positions closed at market.
+                    </p>
+                  </div>
+                ) : duelEndedForUi ? (
+                  <div
+                    className={`${duelLiveSoberShell} shrink-0 px-3 py-4 text-center sm:px-5 sm:py-5 md:py-6`}
+                  >
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 sm:text-[10px]">
+                      Duel over · positions closed
+                    </p>
+                    <p
+                      className={`font-[family-name:var(--font-orbitron)] font-black tabular-nums leading-[0.92] tracking-tight text-[clamp(2.75rem,12vmin,5.75rem)] sm:text-[clamp(3.25rem,14vmin,6.5rem)] text-zinc-500`}
+                    >
+                      …
+                    </p>
+                    <p className={`${gameMuted} mx-auto mt-1 max-w-md text-[10px] leading-tight sm:text-[11px]`}>
+                      Finalizing scores…
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    className={`${duelLiveSoberShell} shrink-0 px-3 py-4 text-center sm:px-5 sm:py-5 md:py-6`}
+                  >
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em] text-amber-400/80 sm:text-[10px]">
+                      Time left (duel)
+                    </p>
+                    <p
+                      className={`font-[family-name:var(--font-orbitron)] font-black tabular-nums leading-[0.92] tracking-tight text-[clamp(2.75rem,12vmin,5.75rem)] sm:text-[clamp(3.25rem,14vmin,6.5rem)] md:text-[clamp(3.5rem,15vmin,7.25rem)] ${
+                        duelCountdownDisplay === 0
+                          ? "duel-live-timer-shake text-rose-400/90 [text-shadow:0_0_24px_rgba(244,63,94,0.45)]"
+                          : "text-zinc-100"
+                      }`}
+                    >
+                      {duelCountdownDisplay === null ? (
+                        <span className="text-zinc-600">…</span>
+                      ) : duelCountdownDisplay === 0 ? (
                         "0 s"
                       ) : (
                         <>{duelCountdownDisplay} s</>
                       )}
                     </p>
-                  </div>
-                  <p className={`${gameMuted} max-w-md text-[11px]`}>
-                    Positions update live. When the timer hits 0, your positions
-                    are closed at market automatically (one transaction per trade).
-                  </p>
-                </div>
-
-                {duelTimerEnded && duelPnlOutcome ? (
-                  <div
-                    className={`${gamePanel} ${gamePanelTopAccent} space-y-4 p-6 ${
-                      duelPnlOutcome.winner === "you"
-                        ? "border-[var(--game-cyan)]/70 shadow-[0_0_32px_rgba(65,245,240,0.15)]"
-                        : duelPnlOutcome.winner === "opponent"
-                          ? "border-[var(--game-magenta)]/60"
-                          : ""
-                    }`}
-                  >
-                    <p className={gameLabel}>Duel result</p>
-                    <h2
-                      className={`font-[family-name:var(--font-orbitron)] text-xl font-black uppercase tracking-wide sm:text-2xl ${
-                        duelPnlOutcome.winner === "you"
-                          ? "text-[var(--game-cyan)] [text-shadow:0_0_20px_rgba(65,245,240,0.45)]"
-                          : duelPnlOutcome.winner === "opponent"
-                            ? "text-[var(--game-magenta)] [text-shadow:0_0_18px_rgba(255,61,154,0.4)]"
-                            : duelPnlOutcome.winner === "tie"
-                              ? "text-[var(--game-amber)]"
-                              : "text-[var(--game-text-muted)]"
-                      }`}
-                    >
-                      {duelPnlOutcome.winner === "you"
-                        ? "Win"
-                        : duelPnlOutcome.winner === "opponent"
-                          ? "Loss"
-                          : duelPnlOutcome.winner === "tie"
-                            ? "Tie"
-                            : "Incomplete score"}
-                    </h2>
-                    <p className={`${gameMuted} text-[12px]`}>
-                      Ranking by{" "}
-                      <span className="font-semibold text-[var(--game-text)]">
-                        PnL %
-                      </span>{" "}
-                      at the last tick ~1s (or last known % if the position closed
-                      before the end).
+                    <p className={`${gameMuted} mx-auto mt-1 max-w-md text-[10px] leading-tight sm:text-[11px]`}>
+                      At 0s, positions close at market (one tx per trade).
                     </p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4">
-                        <p className={gameLabel}>You</p>
-                        <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-text)]">
-                          {myTradePseudo}
-                        </p>
-                        <p className="mt-2 font-[family-name:var(--font-orbitron)] text-lg font-bold tabular-nums text-[var(--game-cyan)]">
-                          {formatOutcomePct(duelPnlOutcome.myPnlPct)}
-                        </p>
-                        <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
-                          PnL USDC :{" "}
-                          {formatOutcomeUsdc(duelPnlOutcome.myPnlUsdc)}
-                        </p>
-                      </div>
-                      <div className="rounded-sm border border-[var(--game-cyan-dim)]/50 bg-[rgba(0,0,0,0.35)] p-4">
-                        <p className={gameLabel}>Opponent</p>
-                        <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-text)]">
-                          {opponentTradePseudo}
-                        </p>
-                        <p className="mt-2 font-[family-name:var(--font-orbitron)] text-lg font-bold tabular-nums text-[var(--game-magenta)]">
-                          {formatOutcomePct(duelPnlOutcome.opponentPnlPct)}
-                        </p>
-                        <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)]">
-                          PnL USDC:{" "}
-                          {formatOutcomeUsdc(duelPnlOutcome.opponentPnlUsdc)}
-                        </p>
-                      </div>
-                    </div>
                   </div>
-                ) : null}
+                )}
 
                 {duelAutoCloseBusy || duelAutoCloseResult ? (
                   <div
-                    className={`rounded-sm border px-4 py-3 text-sm ${
+                    className={`shrink-0 rounded-sm border px-2.5 py-2 text-xs sm:px-3 sm:py-2.5 sm:text-sm ${
                       duelAutoCloseResult != null &&
                       (duelAutoCloseResult.includes("partial") ||
                         duelAutoCloseResult.includes("failed"))
-                        ? "border-[var(--game-danger)]/50 bg-[rgba(255,80,80,0.08)] text-[var(--game-text)]"
-                        : "border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] text-[var(--game-text)]"
+                        ? "border-red-900/40 bg-red-950/25 text-zinc-200"
+                        : "border-zinc-600/45 bg-zinc-900/50 text-zinc-200"
                     }`}
                   >
                     {duelAutoCloseBusy ? (
@@ -947,57 +1003,128 @@ export function DuelPrepareView() {
                   </div>
                 ) : null}
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {/* Gauche : ton trade · Droite : adversaire */}
-                  <div className="min-w-0 space-y-2">
-                    <div>
-                      <p className={gameLabel}>Your trade</p>
-                      <p className="truncate font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-[var(--game-text)] sm:text-lg">
-                        {myTradePseudo}
+                <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                  <div className="relative grid shrink-0 items-center gap-1.5 sm:gap-2 lg:grid-cols-[1fr_auto_1fr]">
+                    <div
+                      className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-px -translate-y-1/2 bg-gradient-to-r from-cyan-500/40 via-amber-400/55 to-fuchsia-500/40 opacity-80"
+                      aria-hidden
+                    />
+                    <p className="relative z-10 truncate text-center font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-cyan-100 [text-shadow:0_0_16px_rgba(34,211,238,0.35)] sm:text-lg">
+                      {myTradePseudo}
+                    </p>
+                    <p
+                      className="duel-vs-mark relative z-10 bg-gradient-to-b from-amber-100 via-amber-400 to-yellow-600 bg-clip-text text-center font-[family-name:var(--font-orbitron)] text-2xl font-black italic tabular-nums text-transparent sm:text-3xl lg:px-1"
+                      aria-label="versus"
+                    >
+                      VS
+                    </p>
+                    <p className="relative z-10 truncate text-center font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-fuchsia-100 [text-shadow:0_0_16px_rgba(232,121,249,0.38)] sm:text-lg">
+                      {opponentTradePseudo}
+                    </p>
+                  </div>
+                  {duelEndedForUi && effectivePnlOutcome ? (
+                    <div
+                      className={`${duelLiveSoberShell} min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:space-y-4 sm:p-5`}
+                    >
+                      <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-500 sm:text-[10px]">
+                        Final stats
+                      </p>
+                      <p className={`${gameMuted} text-[11px] leading-snug sm:text-xs`}>
+                        Ranked by{" "}
+                        <span className="font-semibold text-[var(--game-text)]">PnL %</span> on the
+                        last tick ~1s (or last known % if a position closed early).
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+                        <div className="rounded-sm border border-zinc-600/40 border-l-cyan-500/55 bg-zinc-950/60 p-3 shadow-[inset_3px_0_0_0_rgba(34,211,238,0.35)] sm:p-4">
+                          <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-cyan-400/90">
+                            You
+                          </p>
+                          <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-cyan-50 sm:text-base">
+                            {myTradePseudo}
+                          </p>
+                          <p className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl font-bold tabular-nums text-emerald-400/90 sm:text-3xl">
+                            {formatOutcomePct(effectivePnlOutcome.myPnlPct)}
+                          </p>
+                          <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)] sm:text-sm">
+                            PnL USDC: {formatOutcomeUsdc(effectivePnlOutcome.myPnlUsdc)}
+                          </p>
+                        </div>
+                        <div className="rounded-sm border border-zinc-600/40 border-l-fuchsia-500/55 bg-zinc-950/60 p-3 shadow-[inset_3px_0_0_0_rgba(232,121,249,0.35)] sm:p-4">
+                          <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/90">
+                            Opponent
+                          </p>
+                          <p className="truncate font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-fuchsia-50 sm:text-base">
+                            {opponentTradePseudo}
+                          </p>
+                          <p className="mt-2 font-[family-name:var(--font-orbitron)] text-2xl font-bold tabular-nums text-rose-400/90 sm:text-3xl">
+                            {formatOutcomePct(effectivePnlOutcome.opponentPnlPct)}
+                          </p>
+                          <p className="mt-1 font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-text-muted)] sm:text-sm">
+                            PnL USDC:{" "}
+                            {formatOutcomeUsdc(effectivePnlOutcome.opponentPnlUsdc)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : duelEndedForUi ? (
+                    <div
+                      className={`${duelLiveSoberShell} flex flex-1 items-center justify-center p-6 text-center`}
+                    >
+                      <p className={`${gameMuted} font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider`}>
+                        Waiting for final PnL…
                       </p>
                     </div>
-                    <GainsLivePositionsPanel
-                      panelTitle="Positions (live)"
-                      positionCardLabel="Your position"
-                      showConnectionMeta
-                      positions={myPositions}
-                      pnlHistoryByKey={pnlHistoryMy}
-                      historyKeyForPosition={(p) =>
-                        gainsPositionHistorySideKey("my", p)
-                      }
-                      connectionState={connectionState}
-                      lastWsError={lastWsError}
-                      gainsWallet={gainsWallet}
-                      gainsChain={gainsChain}
-                      wsDuelId={duelId}
-                      duelEnded={duelTimerEnded}
-                    />
-                  </div>
-                  <div className="min-w-0 space-y-2">
-                    <div>
-                      <p className={gameLabel}>Opponent</p>
-                      <p className="truncate font-[family-name:var(--font-orbitron)] text-base font-bold uppercase tracking-wide text-[var(--game-text)] sm:text-lg">
-                        {opponentTradePseudo}
-                      </p>
+                  ) : (
+                    <div className="grid h-full min-h-0 flex-1 gap-2 overflow-hidden lg:grid-cols-2 lg:items-stretch lg:gap-3">
+                      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+                        <GainsLivePositionsPanel
+                          className="h-full min-h-0 flex-1"
+                          compact
+                          expandChart
+                          liveDuelVisuals={duelLiveActive}
+                          duelPlayerSide="my"
+                          panelTitle="Positions (live)"
+                          positionCardLabel="Your position"
+                          showConnectionMeta={false}
+                          positions={myPositions}
+                          pnlHistoryByKey={pnlHistoryMy}
+                          historyKeyForPosition={(p) =>
+                            gainsPositionHistorySideKey("my", p)
+                          }
+                          connectionState={connectionState}
+                          lastWsError={lastWsError}
+                          gainsWallet={gainsWallet}
+                          gainsChain={gainsChain}
+                          wsDuelId={duelId}
+                          duelEnded={duelEndedForUi}
+                        />
+                      </div>
+                      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+                        <GainsLivePositionsPanel
+                          className="h-full min-h-0 flex-1"
+                          compact
+                          expandChart
+                          liveDuelVisuals={duelLiveActive}
+                          duelPlayerSide="opponent"
+                          panelTitle="Positions (live)"
+                          positionCardLabel="Opponent position"
+                          readOnly
+                          showConnectionMeta={false}
+                          positions={opponentPositions}
+                          pnlHistoryByKey={pnlHistoryOpponent}
+                          historyKeyForPosition={(p) =>
+                            gainsPositionHistorySideKey("opponent", p)
+                          }
+                          connectionState={connectionState}
+                          lastWsError={lastWsError}
+                          gainsWallet={gainsWallet}
+                          gainsChain={gainsChain}
+                          wsDuelId={duelId}
+                          duelEnded={duelEndedForUi}
+                        />
+                      </div>
                     </div>
-                    <GainsLivePositionsPanel
-                      panelTitle="Positions (live)"
-                      positionCardLabel="Opponent position"
-                      readOnly
-                      showConnectionMeta={false}
-                      positions={opponentPositions}
-                      pnlHistoryByKey={pnlHistoryOpponent}
-                      historyKeyForPosition={(p) =>
-                        gainsPositionHistorySideKey("opponent", p)
-                      }
-                      connectionState={connectionState}
-                      lastWsError={lastWsError}
-                      gainsWallet={gainsWallet}
-                      gainsChain={gainsChain}
-                      wsDuelId={duelId}
-                      duelEnded={duelTimerEnded}
-                    />
-                  </div>
+                  )}
                 </div>
               </>
             ) : null}
@@ -1014,122 +1141,139 @@ export function DuelPrepareView() {
           />
         )}
 
-        {!duel.myReady && duel.playMode === "duel" ? (
-          <TokenPicker
-            stakeUsdc={duel.stakeUsdc}
-            chainIds={["42161", "8453"]}
-            onSelect={setSelectedToken}
-            selected={selectedToken}
-          />
-        ) : null}
+        {!duelUiLive ? (
+          <>
+            {!duel.myReady && duel.playMode === "duel" ? (
+              <TokenPicker
+                stakeUsdc={duel.stakeUsdc}
+                chainId={gainsChain === "Arbitrum" ? "42161" : "42161"}
+                onSelect={setSelectedToken}
+                selected={selectedToken}
+              />
+            ) : null}
 
-        {!duel.myReady ? (
-          <div className={`${gamePanel} space-y-4 p-6`}>
-            <h2 className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)]">
-              Your settings
-            </h2>
-            {duel.myExecGainsChain ? (
-              <p className={`${gameMuted} text-xs`}>
-                {duel.playMode === "duel" ? "Duel mode" : "Friendly mode"} — fixed chain for your trade:{" "}
-                <span className="text-[var(--game-cyan)]">{duel.myExecGainsChain}</span>
-              </p>
-            ) : duel.playMode === "duel" ? (
-              <p className={`${gameMuted} text-xs`}>
-                Duel mode — chain is determined by your collateral token (
-                <span className="text-[var(--game-cyan)]">{gainsChain}</span>).
-              </p>
-            ) : null}
-            <div className="space-y-2">
-              <span className={gameLabel}>Trading pair</span>
-              <p className={`${gameMuted} text-xs`}>
-                Tap a row to set{" "}
-                <span className="text-[var(--game-cyan)]">
-                  pair + live price
-                </span>{" "}
-                for on-chain open (avoids stale demo price reverts).
-              </p>
-              <GainsPairPicker
-                chain={gainsChain}
-                chainSelectDisabled
-                onChainChange={() => {}}
-                selectedPairIndex={pairIndex}
-                onSelectPair={(p: GainsTradingPair) => {
-                  setPairIndex(p.pairIndex)
-                  setSelectedPairLabel(p.name)
-                  setSelectedReferencePrice(
-                    Number.isFinite(p.price) && p.price > 0 ? p.price : null,
-                  )
-                }}
-              />
-            </div>
-            <label className="block space-y-2">
-              <span className={gameLabel}>Leverage (×)</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                value={leverageDraft}
-                onChange={(e) => {
-                  const d = e.target.value.replace(/\D/g, "").slice(0, 3)
-                  setLeverageDraft(d)
-                  if (d === "") return
-                  const n = Number.parseInt(d, 10)
-                  if (Number.isFinite(n) && n >= 1 && n <= 500) setLeverageX(n)
-                }}
-                onBlur={() => {
-                  let n = Number.parseInt(leverageDraft, 10)
-                  if (!Number.isFinite(n) || n < 1) n = 1
-                  if (n > 500) n = 500
-                  setLeverageX(n)
-                  setLeverageDraft(String(n))
-                }}
-                className={gameInput}
-              />
-            </label>
-            <label className="flex cursor-pointer items-center gap-3 text-sm text-[var(--game-text)]">
-              <input
-                type="checkbox"
-                checked={long}
-                onChange={(e) => setLong(e.target.checked)}
-                className="size-4 accent-[var(--game-cyan)]"
-              />
-              <span>Long (uncheck for short)</span>
-            </label>
-            {swapResult ? (
-              <p className="text-xs text-[var(--game-cyan)]">{swapResult}</p>
-            ) : null}
-            {readyError ? (
-              <p className="text-sm text-[var(--game-danger)]">{readyError}</p>
-            ) : null}
-            <button
-              type="button"
-              disabled={readyLoading}
-              onClick={() => void onMarkReady()}
-              className={gameBtnPrimary}
-            >
-              {swapBusy
-                ? "Swapping…"
-                : readyLoading
-                  ? "Sending…"
-                  : selectedToken && !selectedToken.isCollateral
-                    ? `Swap ${selectedToken.symbol} → USDC & GO`
-                    : "Mark ready — GO"}
-            </button>
-          </div>
-        ) : (
-          <div className="rounded-sm border-2 border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] px-4 py-4 text-sm">
-            <p className="font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-cyan)]">
-              Ready locked in
-            </p>
-            <p className={`${gameMuted} mt-1`}>
-              {selectedPairLabel || `Pair #${pairIndex}`} · {gainsChain} ·{" "}
-              {leverageX}× · {long ? "Long" : "Short"}
-              {selectedReferencePrice != null ? (
-                <> · ref price {selectedReferencePrice}</>
-              ) : null}
-            </p>
-          </div>
-        )}
+            {!duel.myReady ? (
+              <div className={`${gamePanel} space-y-4 p-6`}>
+                <h2 className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)]">
+                  Your settings
+                </h2>
+                {duel.myExecGainsChain ? (
+                  <p className={`${gameMuted} text-xs`}>
+                    {duel.playMode === "duel" ? "Duel mode" : "Friendly mode"} — fixed chain for your trade:{" "}
+                    <span className="text-[var(--game-cyan)]">{duel.myExecGainsChain}</span>
+                    {duel.creatorChain != null && duel.opponentChain != null ? (
+                      <>
+                        {" "}
+                        (host {duel.creatorChain} · guest {duel.opponentChain})
+                      </>
+                    ) : null}
+                  </p>
+                ) : duel.playMode === "duel" ? (
+                  <p className={`${gameMuted} text-xs`}>
+                    Duel mode — pick <span className="text-[var(--game-cyan)]">Arbitrum</span> or{" "}
+                    <span className="text-[var(--game-cyan)]">Base</span> for your trade; the chain is saved
+                    when you mark ready.
+                  </p>
+                ) : null}
+                <div className="space-y-2">
+                  <span className={gameLabel}>Trading pair</span>
+                  <p className={`${gameMuted} text-xs`}>
+                    Tap a row to set{" "}
+                    <span className="text-[var(--game-cyan)]">
+                      pair + live price
+                    </span>{" "}
+                    for on-chain open (avoids stale demo price reverts).
+                  </p>
+                  <GainsPairPicker
+                    chain={gainsChain}
+                    chainOptions={gainsPickerChainOptions}
+                    chainSelectDisabled={Boolean(duel.myExecGainsChain)}
+                    onChainChange={(c) => {
+                      setGainsChain(c)
+                      setPairIndex(0)
+                      setSelectedPairLabel("")
+                      setSelectedReferencePrice(null)
+                    }}
+                    selectedPairIndex={pairIndex}
+                    onSelectPair={(p: GainsTradingPair) => {
+                      setPairIndex(p.pairIndex)
+                      setSelectedPairLabel(p.name)
+                      setSelectedReferencePrice(
+                        Number.isFinite(p.price) && p.price > 0 ? p.price : null,
+                      )
+                    }}
+                  />
+                </div>
+                <label className="block space-y-2">
+                  <span className={gameLabel}>Leverage (×)</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={leverageDraft}
+                    onChange={(e) => {
+                      const d = e.target.value.replace(/\D/g, "").slice(0, 3)
+                      setLeverageDraft(d)
+                      if (d === "") return
+                      const n = Number.parseInt(d, 10)
+                      if (Number.isFinite(n) && n >= 1 && n <= 500) setLeverageX(n)
+                    }}
+                    onBlur={() => {
+                      let n = Number.parseInt(leverageDraft, 10)
+                      if (!Number.isFinite(n) || n < 1) n = 1
+                      if (n > 500) n = 500
+                      setLeverageX(n)
+                      setLeverageDraft(String(n))
+                    }}
+                    className={gameInput}
+                  />
+                </label>
+                <label className="flex cursor-pointer items-center gap-3 text-sm text-[var(--game-text)]">
+                  <input
+                    type="checkbox"
+                    checked={long}
+                    onChange={(e) => setLong(e.target.checked)}
+                    className="size-4 accent-[var(--game-cyan)]"
+                  />
+                  <span>Long (uncheck for short)</span>
+                </label>
+                {swapResult ? (
+                  <p className="text-xs text-[var(--game-cyan)]">{swapResult}</p>
+                ) : null}
+                {readyError ? (
+                  <p className="text-sm text-[var(--game-danger)]">{readyError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={readyLoading}
+                  onClick={() => void onMarkReady()}
+                  className={gameBtnPrimary}
+                >
+                  {swapBusy
+                    ? "Swapping…"
+                    : readyLoading
+                      ? "Sending…"
+                      : selectedToken && !selectedToken.isCollateral
+                        ? `Swap ${selectedToken.symbol} → USDC & GO`
+                        : "Mark ready — GO"}
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-sm border-2 border-[var(--game-cyan)]/40 bg-[rgba(65,245,240,0.08)] px-4 py-4 text-sm">
+                <p className="font-[family-name:var(--font-orbitron)] text-xs font-bold uppercase tracking-wider text-[var(--game-cyan)]">
+                  Ready locked in
+                </p>
+                <p className={`${gameMuted} mt-1`}>
+                  {selectedPairLabel || `Pair #${pairIndex}`} · {gainsChain} ·{" "}
+                  {leverageX}× · {long ? "Long" : "Short"}
+                  {selectedReferencePrice != null ? (
+                    <> · ref price {selectedReferencePrice}</>
+                  ) : null}
+                </p>
+              </div>
+            )}
+          </>
+        ) : null}
 
         {duel.myReady && !duel.bothReady ? (
           <p
@@ -1177,51 +1321,42 @@ export function DuelPrepareView() {
           </div>
         ) : null}
 
-        {duel.bothReady &&
-        (execError ||
-          (prepCountdownDone &&
-            (txHash || execLoading || duel.myTradeOpened))) ? (
-          <div
-            className={`${gamePanel} ${gamePanelTopAccent} relative z-[45] space-y-4 p-6`}
+        {prepCountdownDone &&
+        execLoading &&
+        !txHash &&
+        !duel.myTradeOpened &&
+        !execError ? (
+          <p
+            className={`${gameMuted} shrink-0 text-center font-[family-name:var(--font-orbitron)] text-xs uppercase tracking-wider`}
           >
-            <h2 className="font-[family-name:var(--font-orbitron)] text-sm font-bold uppercase text-[var(--game-amber)]">
-              Trade launch
-            </h2>
-            {execLoading && !txHash && !duel.myTradeOpened ? (
-              <p className={gameMuted}>Signing…</p>
-            ) : null}
-            {duel.myTradeOpened && !txHash && !execError && !execLoading ? (
-              <p className={gameMuted}>
-                Position already open — resuming session (no new signature).
-              </p>
-            ) : null}
-            {execError ? (
-              <div className="space-y-3">
-                <p className="text-sm text-[var(--game-danger)]">{execError}</p>
-                {!duel.myTradeOpened ? (
-                  <button
-                    type="button"
-                    disabled={execLoading}
-                    onClick={() => void onRetrySign()}
-                    className="w-full rounded-sm border-2 border-[var(--game-magenta)] bg-transparent py-2.5 text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)] transition enabled:hover:bg-[rgba(255,61,154,0.12)] disabled:opacity-50"
-                  >
-                    Retry signing
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            {txHash ? (
-              <p className="break-all font-[family-name:var(--font-share-tech)] text-xs text-[var(--game-cyan)]">
-                Tx: {txHash}
-              </p>
+            Signing trade…
+          </p>
+        ) : null}
+
+        {prepCountdownDone && execError ? (
+          <div
+            className={`${gamePanel} relative z-[45] shrink-0 space-y-3 border-[var(--game-danger)]/40 p-4`}
+          >
+            <p className="text-sm text-[var(--game-danger)]">{execError}</p>
+            {!duel.myTradeOpened ? (
+              <button
+                type="button"
+                disabled={execLoading}
+                onClick={() => void onRetrySign()}
+                className="w-full rounded-sm border-2 border-[var(--game-magenta)] bg-transparent py-2.5 text-sm font-bold uppercase tracking-wider text-[var(--game-magenta)] transition enabled:hover:bg-[rgba(255,61,154,0.12)] disabled:opacity-50"
+              >
+                Retry signing
+              </button>
             ) : null}
           </div>
         ) : null}
 
-        <Link href={`/duel/${duelId}`} className={`${gameLink} text-center`}>
-          ← Back to lobby
-        </Link>
+        {!fitLiveViewport ? (
+          <Link href={`/duel/${duelId}`} className={`${gameLink} shrink-0 text-center`}>
+            ← Back to lobby
+          </Link>
+        ) : null}
       </main>
-    </>
+    </div>
   )
 }

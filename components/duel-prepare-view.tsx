@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -424,6 +425,10 @@ export function DuelPrepareView() {
 
   const participant =
     duel?.viewer && (duel.viewer.isCreator || duel.viewer.isOpponent)
+
+  const gainsPickerChainOptions = useMemo((): GainsApiChain[] => {
+    return duel?.playMode === "duel" ? ["Arbitrum", "Base"] : ["Testnet"]
+  }, [duel?.playMode])
 
   /** Derive gainsChain from the selected collateral token's chain. */
   useEffect(() => {
@@ -1146,7 +1151,13 @@ export function DuelPrepareView() {
             {!duel.myReady && duel.playMode === "duel" ? (
               <TokenPicker
                 stakeUsdc={duel.stakeUsdc}
-                chainId={gainsChain === "Arbitrum" ? "42161" : "42161"}
+                chainIds={
+                  duel.myExecGainsChain === "Arbitrum"
+                    ? ["42161"]
+                    : duel.myExecGainsChain === "Base"
+                      ? ["8453"]
+                      : ["42161", "8453"]
+                }
                 onSelect={setSelectedToken}
                 selected={selectedToken}
               />
